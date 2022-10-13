@@ -29,28 +29,28 @@
  */
 
 #include <stdio.h>
-#include <stdlib.h>  /* malloc() free() realloc() */
+#include <stdlib.h>
 #include <string.h>
 #include <pthread.h>
-#include "config.h"  // 配置信息
+#include "config.h"
 
-#if defined(__sun)  //sun os
-#define PREFIX_SIZE sizeof(long long)  // prefix_size 对应 sds->free
+#if defined(__sun)
+#define PREFIX_SIZE sizeof(long long)
 #else
 #define PREFIX_SIZE sizeof(size_t)
 #endif
 
-#define increment_used_memory(_n) do { \  /* 增加使用的内存 */
-    if (zmalloc_thread_safe) { \  // 启用线程安全
-        pthread_mutex_lock(&used_memory_mutex);  \  // 加锁
+#define increment_used_memory(_n) do { \
+    if (zmalloc_thread_safe) { \
+        pthread_mutex_lock(&used_memory_mutex);  \
         used_memory += _n; \
-        pthread_mutex_unlock(&used_memory_mutex); \  // 开锁
+        pthread_mutex_unlock(&used_memory_mutex); \
     } else { \
-        used_memory += _n; \  // 不加锁，直接增加
+        used_memory += _n; \
     } \
 } while(0)
 
-#define decrement_used_memory(_n) do { \  /* 减少使用的内存 */
+#define decrement_used_memory(_n) do { \
     if (zmalloc_thread_safe) { \
         pthread_mutex_lock(&used_memory_mutex);  \
         used_memory -= _n; \
@@ -60,28 +60,28 @@
     } \
 } while(0)
 
-static size_t used_memory = 0;  // 已分配的总内存长度
-static int zmalloc_thread_safe = 0;  // 默认未开启内存安全
-pthread_mutex_t used_memory_mutex = PTHREAD_MUTEX_INITIALIZER;  // 初始化一个互斥锁变量
+static size_t used_memory = 0;
+static int zmalloc_thread_safe = 0;
+pthread_mutex_t used_memory_mutex = PTHREAD_MUTEX_INITIALIZER;
 
-static void zmalloc_oom(size_t size) {  /* 可用内存不足，分配报错 */
+static void zmalloc_oom(size_t size) {
     fprintf(stderr, "zmalloc: Out of memory trying to allocate %zu bytes\n",
         size);
     fflush(stderr);
     abort();
 }
 
-void *zmalloc(size_t size) {  /* 分配内存 */
-    void *ptr = malloc(size+PREFIX_SIZE);  // size对应sds->len，prefix_size对应sds->free
+void *zmalloc(size_t size) {
+    void *ptr = malloc(size+PREFIX_SIZE);
 
     if (!ptr) zmalloc_oom(size);
 #ifdef HAVE_MALLOC_SIZE
     increment_used_memory(redis_malloc_size(ptr));
     return ptr;
 #else
-    *((size_t*)ptr) = size;  //将size的值存入转换为size_t类型的指针中
-    increment_used_memory(size+PREFIX_SIZE);  // 更新总已分配内存长度
-    return (char*)ptr+PREFIX_SIZE;  // 返回sds->buf的指针
+    *((size_t*)ptr) = size;
+    increment_used_memory(size+PREFIX_SIZE);
+    return (char*)ptr+PREFIX_SIZE;
 #endif
 }
 
@@ -92,7 +92,7 @@ void *zrealloc(void *ptr, size_t size) {
     size_t oldsize;
     void *newptr;
 
-    if (ptr == NULL) return zmalloc(size);  // 之前没有分配过内存，直接调用zamalloc()
+    if (ptr == NULL) return zmalloc(size);
 #ifdef HAVE_MALLOC_SIZE
     oldsize = redis_malloc_size(ptr);
     newptr = realloc(ptr,size);
@@ -102,15 +102,15 @@ void *zrealloc(void *ptr, size_t size) {
     increment_used_memory(redis_malloc_size(newptr));
     return newptr;
 #else
-    realptr = (char*)ptr-PREFIX_SIZE;  // sds结构体指针
-    oldsize = *((size_t*)realptr);  // sds->len的值
-    newptr = realloc(realptr,size+PREFIX_SIZE);  // 给sds->buf分配新指针
+    realptr = (char*)ptr-PREFIX_SIZE;
+    oldsize = *((size_t*)realptr);
+    newptr = realloc(realptr,size+PREFIX_SIZE);
     if (!newptr) zmalloc_oom(size);
 
-    *((size_t*)newptr) = size;  //将size的值存入转换为size_t类型的指针中
+    *((size_t*)newptr) = size;
     decrement_used_memory(oldsize);
-    increment_used_memory(size);  // 将旧的sds->len更新
-    return (char*)newptr+PREFIX_SIZE;  // 返回新的sds->buf指针
+    increment_used_memory(size);
+    return (char*)newptr+PREFIX_SIZE;
 #endif
 }
 
@@ -125,22 +125,22 @@ void zfree(void *ptr) {
     decrement_used_memory(redis_malloc_size(ptr));
     free(ptr);
 #else
-    realptr = (char*)ptr-PREFIX_SIZE;  // sds结构体指针
+    realptr = (char*)ptr-PREFIX_SIZE;
     oldsize = *((size_t*)realptr);
     decrement_used_memory(oldsize+PREFIX_SIZE);
-    free(realptr);  // 释放内存
+    free(realptr);
 #endif
 }
 
 char *zstrdup(const char *s) {
-    size_t l = strlen(s)+1;  // sds->len，结束符长度
-    char *p = zmalloc(l);  // 申请内存
+    size_t l = strlen(s)+1;
+    char *p = zmalloc(l);
 
-    memcpy(p,s,l);  // 指针，sds->buf，sds->len
+    memcpy(p,s,l);
     return p;
 }
 
-size_t zmalloc_used_memory(void) {  /* 更新总分配内存长度 */
+size_t zmalloc_used_memory(void) {
     size_t um;
 
     if (zmalloc_thread_safe) pthread_mutex_lock(&used_memory_mutex);
@@ -149,6 +149,6 @@ size_t zmalloc_used_memory(void) {  /* 更新总分配内存长度 */
     return um;
 }
 
-void zmalloc_enable_thread_safeness(void) {  /* 启用线程安全 */
+void zmalloc_enable_thread_safeness(void) {
     zmalloc_thread_safe = 1;
 }

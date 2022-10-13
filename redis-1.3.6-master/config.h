@@ -1,13 +1,13 @@
 #ifndef __CONFIG_H
 #define __CONFIG_H
 
-#ifdef __APPLE__  // 苹果系统MacOS
+#ifdef __APPLE__
 #include <AvailabilityMacros.h>
 #endif
 
 /* test for malloc_size() */
 #ifdef __APPLE__
-#include <malloc/malloc.h>  // 苹果系统MacOS特有的
+#include <malloc/malloc.h>
 #define HAVE_MALLOC_SIZE 1
 #define redis_malloc_size(p) malloc_size(p)
 #endif
@@ -23,12 +23,12 @@
 
 /* test for backtrace() */
 #if defined(__APPLE__) || defined(__linux__)
-#define HAVE_BACKTRACE 1  // Linux特有
+#define HAVE_BACKTRACE 1
 #endif
 
 /* test for polling API */
 #ifdef __linux__
-#define HAVE_EPOLL 1  // Linux特有
+#define HAVE_EPOLL 1
 #endif
 
 #if (defined(__APPLE__) && defined(MAC_OS_X_VERSION_10_6)) || defined(__FreeBSD__) || defined(__OpenBSD__) || defined (__NetBSD__)

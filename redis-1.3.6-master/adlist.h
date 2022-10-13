@@ -33,27 +33,27 @@
 
 /* Node, List, and Iterator are the only data structures used currently. */
 
-typedef struct listNode {  /* 双向链表节点 */
-    struct listNode *prev;  // 前向指针
-    struct listNode *next;  // 后向指针
-    void *value;  
+typedef struct listNode {
+    struct listNode *prev;
+    struct listNode *next;
+    void *value;
 } listNode;
 
-typedef struct listIter {  /* 链表迭代器 */
+typedef struct listIter {
     listNode *next;
-    int direction;  // list->tail  list->head
+    int direction;
 } listIter;
 
-typedef struct list {  /* 双向链表，dup、free、match 是用于实现多态链表所需的类型特定函数 */
-    listNode *head;  // 首节点指针
-    listNode *tail;  // 尾节点指针
-    void *(*dup)(void *ptr);  // 节点值复制函数
-    void (*free)(void *ptr);  // 节点值释放函数
-    int (*match)(void *ptr, void *key);  // 节点值对比函数
-    unsigned int len;  // 链表长度 O(1)，记录长度节省了遍历的耗时 O(n)
+typedef struct list {
+    listNode *head;
+    listNode *tail;
+    void *(*dup)(void *ptr);
+    void (*free)(void *ptr);
+    int (*match)(void *ptr, void *key);
+    unsigned int len;
 } list;
 
-/* Functions implemented as macros 宏定义 */
+/* Functions implemented as macros */
 #define listLength(l) ((l)->len)
 #define listFirst(l) ((l)->head)
 #define listLast(l) ((l)->tail)
@@ -69,7 +69,7 @@ typedef struct list {  /* 双向链表，dup、free、match 是用于实现多�
 #define listGetFree(l) ((l)->free)
 #define listGetMatchMethod(l) ((l)->match)
 
-/* Prototypes 函数原型 */
+/* Prototypes */
 list *listCreate(void);
 void listRelease(list *list);
 list *listAddNodeHead(list *list, void *value);
@@ -84,7 +84,7 @@ listNode *listIndex(list *list, int index);
 void listRewind(list *list, listIter *li);
 void listRewindTail(list *list, listIter *li);
 
-/* Directions for iterators 迭代器的方向 */
+/* Directions for iterators */
 #define AL_START_HEAD 0
 #define AL_START_TAIL 1
 
