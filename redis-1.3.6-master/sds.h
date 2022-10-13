@@ -36,9 +36,9 @@
 typedef char *sds;
 
 struct sdshdr {
-    long len;
-    long free;
-    char buf[];
+    long len;  // 当前字符串长度
+    long free;  // sds可用长度
+    char buf[];  // 可变长字符数组，使用sizeof不能计算出长度，"hello" -> ['h', 'e', 'l', 'l', 'o', '\0']
 };
 
 sds sdsnewlen(const void *init, size_t initlen);
