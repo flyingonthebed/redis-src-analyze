@@ -4,29 +4,33 @@
 
 uname_S := $(shell sh -c 'uname -s 2>/dev/null || echo not')
 OPTIMIZATION?=-O2
-ifeq ($(uname_S),SunOS)
+ifeq ($(uname_S),SunOS)  # SunOS使用c99规范
   CFLAGS?= -std=c99 -pedantic $(OPTIMIZATION) -Wall -W -D__EXTENSIONS__ -D_XPG6
   CCLINK?= -ldl -lnsl -lsocket -lm -lpthread
-else
+else  # 其它OS也使用c99规范
   CFLAGS?= -std=c99 -pedantic $(OPTIMIZATION) -Wall -W $(ARCH) $(PROF)
   CCLINK?= -lm -pthread
 endif
 CCOPT= $(CFLAGS) $(CCLINK) $(ARCH) $(PROF)
 DEBUG?= -g -rdynamic -ggdb 
 
+# 4个二进制程序编译时包含的对象文件
 OBJ = adlist.o ae.o anet.o dict.o redis.o sds.o zmalloc.o lzf_c.o lzf_d.o pqsort.o zipmap.o
 BENCHOBJ = ae.o anet.o redis-benchmark.o sds.o adlist.o zmalloc.o
 CLIOBJ = anet.o sds.o adlist.o redis-cli.o zmalloc.o
 CHECKDUMPOBJ = redis-check-dump.o lzf_c.o lzf_d.o
 
+# 定义4个二进制程序名
 PRGNAME = redis-server
 BENCHPRGNAME = redis-benchmark
 CLIPRGNAME = redis-cli
 CHECKDUMPPRGNAME = redis-check-dump
 
+# 全部4个二进制文件名
 all: redis-server redis-benchmark redis-cli redis-check-dump
 
 # Deps (use make dep to generate this)
+# 指定.c .h 文件生成对象文件
 adlist.o: adlist.c adlist.h zmalloc.h
 ae.o: ae.c ae.h zmalloc.h config.h ae_kqueue.c
 ae_epoll.o: ae_epoll.c
@@ -46,6 +50,7 @@ sds.o: sds.c sds.h zmalloc.h
 zipmap.o: zipmap.c zmalloc.h
 zmalloc.o: zmalloc.c config.h
 
+# make 命令编译时的，可选参数
 redis-server: $(OBJ)
 	$(CC) -o $(PRGNAME) $(CCOPT) $(DEBUG) $(OBJ)
 	@echo ""
