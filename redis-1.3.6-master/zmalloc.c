@@ -34,23 +34,23 @@
 #include <pthread.h>
 #include "config.h"  // 配置信息
 
-#if defined(__sun)  //sun os
-#define PREFIX_SIZE sizeof(long long)  // prefix_size 对应 sds->free
+#if defined(__sun)  // SunOS
+#define PREFIX_SIZE sizeof(long long)  /* prefix_size 对应 sds->free */
 #else
 #define PREFIX_SIZE sizeof(size_t)
 #endif
 
-#define increment_used_memory(_n) do { \  /* 增加使用的内存 */
-    if (zmalloc_thread_safe) { \  // 启用线程安全
-        pthread_mutex_lock(&used_memory_mutex);  \  // 加锁
-        used_memory += _n; \
-        pthread_mutex_unlock(&used_memory_mutex); \  // 开锁
+#define increment_used_memory(_n) do { /* 增加使用的内存 */ \
+    if (zmalloc_thread_safe) { /* 启用线程安全 */ \
+        pthread_mutex_lock(&used_memory_mutex); /* 加锁 */  \
+        used_memory += _n; /* 增加使用的内存 */ \
+        pthread_mutex_unlock(&used_memory_mutex); /* 开锁 */ \
     } else { \
-        used_memory += _n; \  // 不加锁，直接增加
+        used_memory += _n; /* 不加锁，直接增加内存 */ \
     } \
 } while(0)
 
-#define decrement_used_memory(_n) do { \  /* 减少使用的内存 */
+#define decrement_used_memory(_n) do { /* 减少使用的内存 */ \
     if (zmalloc_thread_safe) { \
         pthread_mutex_lock(&used_memory_mutex);  \
         used_memory -= _n; \
@@ -114,7 +114,7 @@ void *zrealloc(void *ptr, size_t size) {
 #endif
 }
 
-void zfree(void *ptr) {
+void zfree(void *ptr) {  /* 释放内存 */
 #ifndef HAVE_MALLOC_SIZE
     void *realptr;
     size_t oldsize;
@@ -132,7 +132,7 @@ void zfree(void *ptr) {
 #endif
 }
 
-char *zstrdup(const char *s) {
+char *zstrdup(const char *s) {  /* 复制字符串数组 */
     size_t l = strlen(s)+1;  // sds->len，结束符长度
     char *p = zmalloc(l);  // 申请内存
 
