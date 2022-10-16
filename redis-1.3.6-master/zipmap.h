@@ -31,18 +31,18 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
-
+/* zipmap 主要实现了字典等数据类型 */
 #ifndef _ZIMMAP_H
 #define _ZIPMAP_H
 
-unsigned char *zipmapNew(void);
-unsigned char *zipmapSet(unsigned char *zm, unsigned char *key, unsigned int klen, unsigned char *val, unsigned int vlen, int *update);
-unsigned char *zipmapDel(unsigned char *zm, unsigned char *key, unsigned int klen, int *deleted);
-unsigned char *zipmapRewind(unsigned char *zm);
-unsigned char *zipmapNext(unsigned char *zm, unsigned char **key, unsigned int *klen, unsigned char **value, unsigned int *vlen);
-int zipmapGet(unsigned char *zm, unsigned char *key, unsigned int klen, unsigned char **value, unsigned int *vlen);
-int zipmapExists(unsigned char *zm, unsigned char *key, unsigned int klen);
-unsigned int zipmapLen(unsigned char *zm);
-void zipmapRepr(unsigned char *p);
+unsigned char *zipmapNew(void);  /* 初始化1个zipmap */
+unsigned char *zipmapSet(unsigned char *zm, unsigned char *key, unsigned int klen, unsigned char *val, unsigned int vlen, int *update);  /* 向zipmap中添加(key,value)对 */
+unsigned char *zipmapDel(unsigned char *zm, unsigned char *key, unsigned int klen, int *deleted);  /* 从zipmap中删除(key,value)对 */
+unsigned char *zipmapRewind(unsigned char *zm);  /* 将zipmap指针后移1个key */
+unsigned char *zipmapNext(unsigned char *zm, unsigned char **key, unsigned int *klen, unsigned char **value, unsigned int *vlen);  /* 迭代zipmap获取下一个(key,value) */
+int zipmapGet(unsigned char *zm, unsigned char *key, unsigned int klen, unsigned char **value, unsigned int *vlen);  /* 通过key获取value */
+int zipmapExists(unsigned char *zm, unsigned char *key, unsigned int klen);  /* 判断key是否在zipmap中 */
+unsigned int zipmapLen(unsigned char *zm);  /* 获取多少对(key,value) */
+void zipmapRepr(unsigned char *p);  /* 格式化输出zipmap的全部信息 */
 
 #endif
