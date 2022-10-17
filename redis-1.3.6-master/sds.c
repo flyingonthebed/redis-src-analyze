@@ -38,12 +38,12 @@
 #include <ctype.h>
 #include "zmalloc.h"  // zmalloc.c -> config.h -> malloc.c, malloc()  free()
 
-static void sdsOomAbort(void) {
+static void sdsOomAbort(void) {  /* sds oom错误 */
     fprintf(stderr,"SDS: Out Of Memory (SDS_ABORT_ON_OOM defined)\n");
     abort();
 }
 
-sds sdsnewlen(const void *init, size_t initlen) {
+sds sdsnewlen(const void *init, size_t initlen) {  /* 初始化1个指定长度的sds */
     struct sdshdr *sh;
 
     sh = zmalloc(sizeof(struct sdshdr)+initlen+1);  // initlen 是给 buf[] 的空间，1是结束符'\0'的空间
@@ -62,8 +62,8 @@ sds sdsnewlen(const void *init, size_t initlen) {
     return (char*)sh->buf;  // 返回对应字符串地址
 }
 
-sds sdsempty(void) {
-    return sdsnewlen("",0);  // 初始化一个空的sds，即 ['\0']
+sds sdsempty(void) {  /* 初始化1个空的sds */
+    return sdsnewlen("",0);  // 即 ['\0']
 }
 
 sds sdsnew(const char *init) {  // 根据传入的字符串长度生成对应长度的sds
@@ -71,33 +71,33 @@ sds sdsnew(const char *init) {  // 根据传入的字符串长度生成对应长
     return sdsnewlen(init, initlen);
 }
 
-size_t sdslen(const sds s) {
+size_t sdslen(const sds s) {  /* 获取sds的长度 */
     struct sdshdr *sh = (void*) (s-(sizeof(struct sdshdr)));  // s为buf的指针地址，减去size后，得到len的指针地址，转换成sds结构体指针后，获取sds的len成员变量
     return sh->len;
 }
 
-sds sdsdup(const sds s) {  // 复制sds
+sds sdsdup(const sds s) {  /* 复制sds */
     return sdsnewlen(s, sdslen(s));  // 根据已有的sds创建一个同样长度同内容的sds
 }
 
-void sdsfree(sds s) {  // 回收sds的内存
+void sdsfree(sds s) {  /* 回收sds的内存 */
     if (s == NULL) return;
     zfree(s-sizeof(struct sdshdr));  // 释放内存
 }
 
-size_t sdsavail(sds s) {
+size_t sdsavail(sds s) {  /* 返回sds的可用长度 */
     struct sdshdr *sh = (void*) (s-(sizeof(struct sdshdr)));  // s为buf的指针地址，减去size后，得到len的指针地址，转换成sds结构体指针后，获取sds的free成员变量
     return sh->free;
 }
 
-void sdsupdatelen(sds s) {
+void sdsupdatelen(sds s) {  /* 更新sds长度 */
     struct sdshdr *sh = (void*) (s-(sizeof(struct sdshdr)));  // s为buf的指针地址，减去size后，得到len的指针地址，转换成sds结构体指针
     int reallen = strlen(s);  // s字符数组的真实长度
     sh->free += (sh->len-reallen);  // 更新free的值，如果s变大，则free+(-n)，即free的值变小
     sh->len = reallen;
 }
 
-static sds sdsMakeRoomFor(sds s, size_t addlen) {  //给sds增加的字符串内容分配空间
+static sds sdsMakeRoomFor(sds s, size_t addlen) {  /* 给sds增加的字符串内容分配空间 */
     struct sdshdr *sh, *newsh;
     size_t free = sdsavail(s);
     size_t len, newlen;
@@ -117,7 +117,7 @@ static sds sdsMakeRoomFor(sds s, size_t addlen) {  //给sds增加的字符串内
     return newsh->buf;
 }
 
-sds sdscatlen(sds s, void *t, size_t len) {  //给sds追加t字符串中的len个字符
+sds sdscatlen(sds s, void *t, size_t len) {  /* 给sds追加t字符串中的len个字符 */
     struct sdshdr *sh;
     size_t curlen = sdslen(s);
 
@@ -131,11 +131,11 @@ sds sdscatlen(sds s, void *t, size_t len) {  //给sds追加t字符串中的len�
     return s;
 }
 
-sds sdscat(sds s, char *t) {  // 将t全部追加到sds末尾
+sds sdscat(sds s, char *t) {  /* 将t全部追加到sds末尾 */
     return sdscatlen(s, t, strlen(t));  
 }
 
-sds sdscpylen(sds s, char *t, size_t len) {  // 将t字符串中的len个字符写入sds中，如果sds空间不足则扩容
+sds sdscpylen(sds s, char *t, size_t len) {  /* 将t字符串中的len个字符写入sds中，如果sds空间不足则扩容 */
     struct sdshdr *sh = (void*) (s-(sizeof(struct sdshdr)));
     size_t totlen = sh->free+sh->len;
 
@@ -152,11 +152,11 @@ sds sdscpylen(sds s, char *t, size_t len) {  // 将t字符串中的len个字符�
     return s;
 }
 
-sds sdscpy(sds s, char *t) {  // 将t字符串完整写入sds中，如果sds空间不足则扩容
+sds sdscpy(sds s, char *t) {  /* 将t字符串完整写入sds中，如果sds空间不足则扩容 */
     return sdscpylen(s, t, strlen(t));
 }
 
-sds sdscatprintf(sds s, const char *fmt, ...) {  // 必须传入s和fmt，后面可传入0~多个变量
+sds sdscatprintf(sds s, const char *fmt, ...) {  /* 必须传入s和fmt，后面可传入0~多个变量 */
     va_list ap;
     char *buf, *t;
     size_t buflen = 16;  //默认分配16字节空间
@@ -184,7 +184,7 @@ sds sdscatprintf(sds s, const char *fmt, ...) {  // 必须传入s和fmt，后面
     return t;
 }
 
-sds sdstrim(sds s, const char *cset) {  // 去掉字符串首尾的空格，cset是要去掉的字符
+sds sdstrim(sds s, const char *cset) {  /* 去掉字符串首尾的空格，cset是要去掉的字符 */
     struct sdshdr *sh = (void*) (s-(sizeof(struct sdshdr)));  // 获取结构体指针
     char *start, *end, *sp, *ep;
     size_t len;
@@ -202,7 +202,7 @@ sds sdstrim(sds s, const char *cset) {  // 去掉字符串首尾的空格，cset
     return s;
 }
 
-sds sdsrange(sds s, long start, long end) {  // 截断操作
+sds sdsrange(sds s, long start, long end) {  /* 截断操作 */
     struct sdshdr *sh = (void*) (s-(sizeof(struct sdshdr)));
     size_t newlen, len = sdslen(s);
 
@@ -230,19 +230,19 @@ sds sdsrange(sds s, long start, long end) {  // 截断操作
     return s;
 }
 
-void sdstolower(sds s) {  // 小写转换
+void sdstolower(sds s) {  /* 小写转换 */
     int len = sdslen(s), j;
 
     for (j = 0; j < len; j++) s[j] = tolower(s[j]);
 }
 
-void sdstoupper(sds s) {  // 大写转换
+void sdstoupper(sds s) {  /* 大写转换 */
     int len = sdslen(s), j;
 
     for (j = 0; j < len; j++) s[j] = toupper(s[j]);
 }
 
-int sdscmp(sds s1, sds s2) {  // 比较2个字符数组是否一致
+int sdscmp(sds s1, sds s2) {  /* 比较2个字符数组是否一致 */
     size_t l1, l2, minlen;
     int cmp;
 
@@ -270,7 +270,7 @@ int sdscmp(sds s1, sds s2) {  // 比较2个字符数组是否一致
  * requires length arguments. sdssplit() is just the
  * same function but for zero-terminated strings.
  */
-sds *sdssplitlen(char *s, int len, char *sep, int seplen, int *count) {  // 切分字符数组，count为切分后的数组元素个数
+sds *sdssplitlen(char *s, int len, char *sep, int seplen, int *count) {  /* 切分字符数组，count为切分后的数组元素个数 */
     int elements = 0, slots = 5, start = 0, j;  // element 是 tokens 的索引位置
 
     sds *tokens = zmalloc(sizeof(sds)*slots);  // 分配内存空间，存储切分后的字符串，默认可以存储5个字符串

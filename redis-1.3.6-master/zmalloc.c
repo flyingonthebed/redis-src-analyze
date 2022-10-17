@@ -85,7 +85,7 @@ void *zmalloc(size_t size) {  /* 分配内存 */
 #endif
 }
 
-void *zrealloc(void *ptr, size_t size) {
+void *zrealloc(void *ptr, size_t size) {  /* 重新分配内存 */
 #ifndef HAVE_MALLOC_SIZE
     void *realptr;
 #endif
