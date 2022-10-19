@@ -43,9 +43,12 @@
 /* Memory layout of a zipmap, for the map "foo" => "bar", "hello" => "world":
  *
  * <status><len>"foo"<len><free>"bar"<len>"hello"<len><free>"world"
- *
+ * len(key) > 252 -- 5个字节存储长度 0xfd 后面4个字节存储长度
+ * 
  * <status> is 1 byte status. Currently only 1 bit is used: if the least
  * significant bit is set, it means the zipmap needs to be defragmented.
+ * 
+ * <status> 占用1个字节，当前只使用最低1位，如果是1表示需要进行碎片整理
  *
  * <len> is the length of the following string (key or value).
  * <len> lengths are encoded in a single value or in a 5 bytes value.
@@ -54,6 +57,8 @@
  * integer follows (in the host byte ordering). A value fo 255 is used to
  * signal the end of the hash. The special value 254 is used to mark
  * empty space that can be used to add new key/value pairs.
+ * 
+ * <len> 的长度为1或5，如果第1个字节值介于0～252之间，len是1；如果是253，len为5；255为结束标志，254表示可以添加新的(key,value)对
  *
  * <free> is the number of free unused bytes
  * after the string, resulting from modification of values associated to a
@@ -64,10 +69,14 @@
  * <free> is always an unsigned 8 bit number, because if after an
  * update operation there are more than a few free bytes, they'll be converted
  * into empty space prefixed by the special value 254.
+ * 
+ * <free> 是空闲字节数，1个字节长度，如果更新后有多个空闲字节，它会被转换成以特殊值254为前缀的空白
  *
  * The most compact representation of the above two elements hash is actually:
  *
  * "\x00\x03foo\x03\x00bar\x05hello\x05\x00world\xff"
+ * 
+ * 2个(key,value)对实际是这样的 --- status:\x00 len:\x03 "foo" len:\x03 free:\x00 "bar" len:\x05 "hello" len:\x05 free:\x00 "world" end:\xff
  *
  * Empty space is marked using a 254 bytes + a <len> (coded as already
  * specified). The length includes the 254 bytes in the count and the
@@ -87,11 +96,11 @@
 #include <assert.h>
 #include "zmalloc.h"
 
-#define ZIPMAP_BIGLEN 253
-#define ZIPMAP_EMPTY 254
-#define ZIPMAP_END 255
+#define ZIPMAP_BIGLEN 253  // 长度0～252
+#define ZIPMAP_EMPTY 254  // 0xfe
+#define ZIPMAP_END 255  // 0xff zipmap结束的标志
 
-#define ZIPMAP_STATUS_FRAGMENTED 1
+#define ZIPMAP_STATUS_FRAGMENTED 1  // 碎片标识，1 表示有碎片
 
 /* The following defines the max value for the <free> field described in the
  * comments above, that is, the max number of trailing bytes in a value. */
@@ -100,39 +109,39 @@
 /* The following macro returns the number of bytes needed to encode the length
  * for the integer value _l, that is, 1 byte for lengths < ZIPMAP_BIGLEN and
  * 5 bytes for all the other lengths. */
-#define ZIPMAP_LEN_BYTES(_l) (((_l) < ZIPMAP_BIGLEN) ? 1 : sizeof(unsigned int)+1)
+#define ZIPMAP_LEN_BYTES(_l) (((_l) < ZIPMAP_BIGLEN) ? 1 : sizeof(unsigned int)+1)  // len 如果小于253，在内存中占1字节；大于等于253，在内存中占5字节
 
 /* Create a new empty zipmap. */
-unsigned char *zipmapNew(void) {
-    unsigned char *zm = zmalloc(2);
+unsigned char *zipmapNew(void) {  /* 初始化1个zipmap */
+    unsigned char *zm = zmalloc(2);  // 分配1个2字节长度的zipmap
 
-    zm[0] = 0; /* Status */
-    zm[1] = ZIPMAP_END;
+    zm[0] = 0; /* Status，0-没有empty block，1-有empty block */
+    zm[1] = ZIPMAP_END;  // 结束标志
     return zm;
 }
 
 /* Decode the encoded length pointed by 'p' */
-static unsigned int zipmapDecodeLength(unsigned char *p) {
-    unsigned int len = *p;
+static unsigned int zipmapDecodeLength(unsigned char *p) {  /* 对zipmap长度进行解码 */
+    unsigned int len = *p;  // 拿到p指向的第1个字节的值，p是指向zipmap开头，如果开头位置保存的值小于0xfe，则该字节表示该zipmap的长度
 
-    if (len < ZIPMAP_BIGLEN) return len;
-    memcpy(&len,p+1,sizeof(unsigned int));
+    if (len < ZIPMAP_BIGLEN) return len;  // 如果len小于253，直接返回
+    memcpy(&len,p+1,sizeof(unsigned int));  // 如果len大于等于253，则p向后移动1个字节，读取4个字节，返回给len
     return len;
 }
 
 /* Encode the length 'l' writing it in 'p'. If p is NULL it just returns
  * the amount of bytes required to encode such a length. */
-static unsigned int zipmapEncodeLength(unsigned char *p, unsigned int len) {
-    if (p == NULL) {
-        return ZIPMAP_LEN_BYTES(len);
+static unsigned int zipmapEncodeLength(unsigned char *p, unsigned int len) {  /* 对长度进行编码，返回该编码需要的字节数，传入指向字符数组中单个字符的指针和字符数组长度 */
+    if (p == NULL) {  // 如果没有传入指针
+        return ZIPMAP_LEN_BYTES(len);  // 是用宏定义方法返回字节占用的长度
     } else {
-        if (len < ZIPMAP_BIGLEN) {
-            p[0] = len;
-            return 1;
-        } else {
+        if (len < ZIPMAP_BIGLEN) {  // 如果len小于253
+            p[0] = len;  // 直接将len保存该值到首字节
+            return 1;  // 内存占用1字节
+        } else {  // len大于等于253
             p[0] = ZIPMAP_BIGLEN;
-            memcpy(p+1,&len,sizeof(len));
-            return 1+sizeof(len);
+            memcpy(p+1,&len,sizeof(len));  // p+1 指针跳过首字节，&len 取len的地址，sizeof 长度4字节
+            return 1+sizeof(len);  // 内存占用5字节
         }
     }
 }
@@ -188,40 +197,40 @@ static unsigned char *zipmapLookupRaw(unsigned char *zm, unsigned char *key, uns
     return NULL;
 }
 
-static unsigned long zipmapRequiredLength(unsigned int klen, unsigned int vlen) {
-    unsigned int l;
+static unsigned long zipmapRequiredLength(unsigned int klen, unsigned int vlen) {  /* 通过计算key和value的长度，得到保存该元素所需要的最小长度 -- <len>"key"<len><free>"value"的总长度 */
+    unsigned int l;  // 定义保存所需的最短长度
 
-    l = klen+vlen+3;
-    if (klen >= ZIPMAP_BIGLEN) l += 4;
-    if (vlen >= ZIPMAP_BIGLEN) l += 4;
+    l = klen+vlen+3;  // <len><len><free>最少占用3字节
+    if (klen >= ZIPMAP_BIGLEN) l += 4;  // 如果大于等于253，加4
+    if (vlen >= ZIPMAP_BIGLEN) l += 4;  // 同上
     return l;
 }
 
 /* Return the total amount used by a key (encoded length + payload) */
-static unsigned int zipmapRawKeyLength(unsigned char *p) {
-    unsigned int l = zipmapDecodeLength(p);
+static unsigned int zipmapRawKeyLength(unsigned char *p) {  /* 计算<len>"key"总的占用字节 */
+    unsigned int l = zipmapDecodeLength(p);  // key的长度
     
-    return zipmapEncodeLength(NULL,l) + l;
+    return zipmapEncodeLength(NULL,l) + l;  // <len>的长度「最终调用了 ZIPMAP_LEN_BYTES(len) 」+ key的长度
 }
 
 /* Return the total amount used by a value
  * (encoded length + single byte free count + payload) */
-static unsigned int zipmapRawValueLength(unsigned char *p) {
-    unsigned int l = zipmapDecodeLength(p);
+static unsigned int zipmapRawValueLength(unsigned char *p) {  /* 计算<len><free>"value"总的占用字节 */
+    unsigned int l = zipmapDecodeLength(p);  // "value"占用的字节
     unsigned int used;
     
-    used = zipmapEncodeLength(NULL,l);
-    used += p[used] + 1 + l;
-    return used;
+    used = zipmapEncodeLength(NULL,l);  // <len>占用的字节
+    used += p[used] + 1 + l;  // p[used] 取出<free>的值，p([5]即 *(p + 5)
+    return used;  // <len>占用的字节 + <free>占用的字节 + <free>的值 + "value"占用的字节
 }
 
 /* If 'p' points to a key, this function returns the total amount of
  * bytes used to store this entry (entry = key + associated value + trailing
  * free space if any). */
-static unsigned int zipmapRawEntryLength(unsigned char *p) {
-    unsigned int l = zipmapRawKeyLength(p);
+static unsigned int zipmapRawEntryLength(unsigned char *p) {  /* <len>"key"<len><free>"value"占用的字节 */
+    unsigned int l = zipmapRawKeyLength(p);  // <len>"key"占用的字节
 
-    return l + zipmapRawValueLength(p+l);
+    return l + zipmapRawValueLength(p+l);  // p+l指向"value"值的位置
 }
 
 /* Set key to value, creating the key if it does not already exist.
