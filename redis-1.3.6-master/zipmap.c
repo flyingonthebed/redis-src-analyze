@@ -43,7 +43,7 @@
 /* Memory layout of a zipmap, for the map "foo" => "bar", "hello" => "world":
  *
  * <status><len>"foo"<len><free>"bar"<len>"hello"<len><free>"world"
- * len(key) > 252 -- 5个字节存储长度 0xfd 后面4个字节存储长度
+ * len(key) > 252 -- 5个字节存储长度，0xfd 后面4个字节存储长度
  * 
  * <status> is 1 byte status. Currently only 1 bit is used: if the least
  * significant bit is set, it means the zipmap needs to be defragmented.
@@ -121,7 +121,7 @@ unsigned char *zipmapNew(void) {  /* 初始化1个zipmap */
 }
 
 /* Decode the encoded length pointed by 'p' */
-static unsigned int zipmapDecodeLength(unsigned char *p) {  /* 对zipmap长度进行解码 */
+static unsigned int zipmapDecodeLength(unsigned char *p) {  /* 对zipmap长度进行解码，返回<len>的长度 */
     unsigned int len = *p;  // 拿到p指向的第1个字节的值，p是指向zipmap开头，如果开头位置保存的值小于0xfe，则该字节表示该zipmap的长度
 
     if (len < ZIPMAP_BIGLEN) return len;  // 如果len小于253，直接返回
@@ -159,41 +159,46 @@ static unsigned int zipmapEncodeLength(unsigned char *p, unsigned int len) {  /*
  * and to get the reply from the function). If there is not a suitable
  * free space block to hold the requested bytes, *freelen is set to 0. */
 static unsigned char *zipmapLookupRaw(unsigned char *zm, unsigned char *key, unsigned int klen, unsigned int *totlen, unsigned int *freeoff, unsigned int *freelen) {
-    unsigned char *p = zm+1;
-    unsigned int l;
-    unsigned int reqfreelen = 0; /* initialized just to prevent warning */
+    /* 搜索指定长度的key，返回key的首地址；如果没有找到合适的key，返回NULL
+    另外：返回NULL时，如果传入的totlen指针非NULL，则该值会设置成zipmap的总长度，并根据这个长度对zipmap扩容
+    返回NULL时，如果传入的freeoff和freelen指针非NULL，则将它们设置到第一个可以容纳freelen值字节数的干净的空间。
+    如果没有合适的空间保存请求的字节，则freelen被设置成0 */
+    unsigned char *p = zm+1;  // zipmap指针右移1个字节指向，第1个<len>
+    unsigned int l;  
+    unsigned int reqfreelen = 0; /* initialized just to prevent warning 初始化1个值，防止没有接收到值报警 */
 
-    if (freelen) {
-        reqfreelen = *freelen;
-        *freelen = 0;
-        assert(reqfreelen != 0);
+    if (freelen) {  // 如果freelen非NULL
+        reqfreelen = *freelen;  // 将freelen的值保存起来
+        *freelen = 0;  // 将freelen置0
+        assert(reqfreelen != 0);  // 断言，如果表达式为假，向stderr输出1条error，并调用abort
     }
-    while(*p != ZIPMAP_END) {
-        if (*p == ZIPMAP_EMPTY) {
-            l = zipmapDecodeLength(p+1);
+    while(*p != ZIPMAP_END) {  // 遍历zipmap直到指针指向end位置
+        /* <status><len>"foo"<len><free>bar<empty><len>.....<end> */
+        if (*p == ZIPMAP_EMPTY) {  // 如果指针找到了empty位置
+            l = zipmapDecodeLength(p+1);  // 指针右移1字节，指向最后1个<len>，即zipmap空格位置起始位置
             /* if the user want a free space report, and this space is
              * enough, and we did't already found a suitable space... */
-            if (freelen && l >= reqfreelen && *freelen == 0) {
-                *freelen = l;
-                *freeoff = p-zm;
+            if (freelen && l >= reqfreelen && *freelen == 0) {  // 如果freelen指针存在，且空格长度满足需求
+                *freelen = l;  // 更新freelen的指针指向空格的起始地址
+                *freeoff = p-zm;  // 得到zipmap首地址到空格的偏移量
             }
-            p += l;
-            zm[0] |= ZIPMAP_STATUS_FRAGMENTED;
-        } else {
+            p += l;  // 跳到end位置
+            zm[0] |= ZIPMAP_STATUS_FRAGMENTED;  // 更新<status>为1，表示zipmap有碎片
+        } else {  // 如果没有找到empty
             unsigned char free;
 
             /* Match or skip the key */
-            l = zipmapDecodeLength(p);
-            if (l == klen && !memcmp(p+1,key,l)) return p;
-            p += zipmapEncodeLength(NULL,l) + l;
+            l = zipmapDecodeLength(p);  // 获取<len>长度
+            if (l == klen && !memcmp(p+1,key,l)) return p;  // 找到符合条件的key并返回。p+1这里有bug，<len>可能是1也可以是5，这个bug在2.0版本修复
+            p += zipmapEncodeLength(NULL,l) + l;  // 如果key不同，跳过<len>key
             /* Skip the value as well */
-            l = zipmapDecodeLength(p);
-            p += zipmapEncodeLength(NULL,l);
-            free = p[0];
-            p += l+1+free; /* +1 to skip the free byte */
+            l = zipmapDecodeLength(p); // 获取<len>长度
+            p += zipmapEncodeLength(NULL,l);  // 跳过<len>
+            free = p[0];  // free的字节长度
+            p += l+1+free; /* +1 to skip the free byte 跳过<len>key<len><free>value */
         }
     }
-    if (totlen != NULL) *totlen = (unsigned int)(p-zm)+1;
+    if (totlen != NULL) *totlen = (unsigned int)(p-zm)+1;  // 将totlen设置成zipmap的总长度
     return NULL;
 }
 
