@@ -42,7 +42,7 @@
 
 /* Memory layout of a zipmap, for the map "foo" => "bar", "hello" => "world":
  *
- * <status><len>"foo"<len><free>"bar"<len>"hello"<len><free>"world"
+ * <status><len>"foo"<len><free>"bar"<len>"hello"<len><free>"world"<end>
  * len(key) > 252 -- 5个字节存储长度，0xfd 后面4个字节存储长度
  * 
  * <status> is 1 byte status. Currently only 1 bit is used: if the least
@@ -241,71 +241,71 @@ static unsigned int zipmapRawEntryLength(unsigned char *p) {  /* <len>"key"<len>
 /* Set key to value, creating the key if it does not already exist.
  * If 'update' is not NULL, *update is set to 1 if the key was
  * already preset, otherwise to 0. */
-unsigned char *zipmapSet(unsigned char *zm, unsigned char *key, unsigned int klen, unsigned char *val, unsigned int vlen, int *update) {
-    unsigned int oldlen = 0, freeoff = 0, freelen;
-    unsigned int reqlen = zipmapRequiredLength(klen,vlen);
+unsigned char *zipmapSet(unsigned char *zm, unsigned char *key, unsigned int klen, unsigned char *val, unsigned int vlen, int *update) {  /* zipmap中set key操作，即插入key。参数：zipmap、key字符串、key长度、value字符串、value长度、更新操作标志：1更新，0新增 */
+    unsigned int oldlen = 0, freeoff = 0, freelen;  // zipmap的长度  <free>的偏移  需要的可用长度
+    unsigned int reqlen = zipmapRequiredLength(klen,vlen);  // 要设置的key需要的字节
     unsigned int empty, vempty;
-    unsigned char *p;
+    unsigned char *p;  // 定义指针p
    
-    freelen = reqlen;
-    if (update) *update = 0;
-    p = zipmapLookupRaw(zm,key,klen,&oldlen,&freeoff,&freelen);
-    if (p == NULL && freelen == 0) {
+    freelen = reqlen;  // 设置zipmap需要预留的free空间大小
+    if (update) *update = 0;  // 将update设置为0
+    p = zipmapLookupRaw(zm,key,klen,&oldlen,&freeoff,&freelen);  // 查找key，如果查找结果为NULL，
+    if (p == NULL && freelen == 0) {  // 如果zipmap中没有这个key，且没有可用空间可以存放key、value
         /* Key not found, and not space for the new key. Enlarge */
-        zm = zrealloc(zm,oldlen+reqlen);
-        p = zm+oldlen-1;
-        zm[oldlen+reqlen-1] = ZIPMAP_END;
-        freelen = reqlen;
-    } else if (p == NULL) {
+        zm = zrealloc(zm,oldlen+reqlen);  // 对zipmap进行扩容
+        p = zm+oldlen-1;  // zm+oldlen 指向<end>尾部，-1是为了指向<end>头部
+        zm[oldlen+reqlen-1] = ZIPMAP_END;  // 扩容后，将<end>标记右移
+        freelen = reqlen;  // 此时预留的字节和需求的字节长度相等
+    } else if (p == NULL) {  // 没有找到key，但是有足够的空间可以存储key、value
         /* Key not found, but there is enough free space. */
-        p = zm+freeoff;
+        p = zm+freeoff;  // 直接将指针p移动到zipmap中的<empty>的首位置
         /* note: freelen is already set in this case */
-    } else {
-        unsigned char *b = p;
+    } else {  // 如果key找到了，同时有足够的空间可以存储key、value
+        unsigned char *b = p;  // 定义指针b，定位value，执行更新操作
 
         /* Key found. Is there enough space for the new value? */
         /* Compute the total length: */
-        if (update) *update = 1;
-        freelen = zipmapRawKeyLength(b);
-        b += freelen;
-        freelen += zipmapRawValueLength(b);
-        if (freelen < reqlen) {
+        if (update) *update = 1;  // 如果update不为NULL，设置为1
+        freelen = zipmapRawKeyLength(b);  // 获取zipmap中<len>key的长度
+        b += freelen;  // 右移指针跳过key，到<len><free>value中<len>的首位置
+        freelen += zipmapRawValueLength(b);  // 增加<len><free>value的长度，此时freelen存储的是一个entry的总长度
+        if (freelen < reqlen) {  // 如果entry不足以容纳新的value，将entry标记为free，并进行递归调用；足够则跳到283行
             /* Mark this entry as free and recurse */
-            p[0] = ZIPMAP_EMPTY;
-            zipmapEncodeLength(p+1,freelen);
-            zm[0] |= ZIPMAP_STATUS_FRAGMENTED;
-            return zipmapSet(zm,key,klen,val,vlen,NULL);
+            p[0] = ZIPMAP_EMPTY;  // 将entry的第1个字节设置为empty标志位
+            zipmapEncodeLength(p+1,freelen);  // 将entry的第2个字节设置为entry的总长度
+            zm[0] |= ZIPMAP_STATUS_FRAGMENTED;  // 再将zipmap最前面的<status>设置为1，表示zipmap有碎片——此时该entry的空间设置为empty
+            return zipmapSet(zm,key,klen,val,vlen,NULL);  // 递归调用zipmapSet方法，此时会在zipmap尾部保存key、value
         }
     }
 
     /* Ok we have a suitable block where to write the new key/value
      * entry. */
-    empty = freelen-reqlen;
+    empty = freelen-reqlen;  // 剩余的可用空间长度
     /* If there is too much free space mark it as a free block instead
      * of adding it as trailing empty space for the value, as we want
      * zipmaps to be very space efficient. */
-    if (empty > ZIPMAP_VALUE_MAX_FREE) {
-        unsigned char *e;
+    if (empty > ZIPMAP_VALUE_MAX_FREE) {  // empty大于5字节
+        unsigned char *e;  // 定义empty指针e
 
-        e = p+reqlen;
-        e[0] = ZIPMAP_EMPTY;
-        zipmapEncodeLength(e+1,empty);
-        vempty = 0;
-        zm[0] |= ZIPMAP_STATUS_FRAGMENTED;
+        e = p+reqlen;  // 右移指针到<empty>开始位置
+        e[0] = ZIPMAP_EMPTY;  // 将<empty>的第1个字节设置为empty标志位
+        zipmapEncodeLength(e+1,empty);  // 将<empty>的第2个字节位置记录empty的长度
+        vempty = 0;  // 更新<free>的值为0，因为此时空闲位置都标记成了empty
+        zm[0] |= ZIPMAP_STATUS_FRAGMENTED;  // 再将zipmap最前面的<status>设置为1，表示zipmap有碎片
     } else {
-        vempty = empty;
+        vempty = empty;  // 更新zipmap中<free>的值
     }
 
     /* Just write the key + value and we are done. */
     /* Key: */
-    p += zipmapEncodeLength(p,klen);
-    memcpy(p,key,klen);
-    p += klen;
+    p += zipmapEncodeLength(p,klen);  // 设置key的<len>的值，同时右移指针p
+    memcpy(p,key,klen);  // 将key的值保存到p指针的位置
+    p += klen;  // 再次右移指针p
     /* Value: */
-    p += zipmapEncodeLength(p,vlen);
-    *p++ = vempty;
-    memcpy(p,val,vlen);
-    return zm;
+    p += zipmapEncodeLength(p,vlen);  // 设置value的<len>的值，同时右移指针p
+    *p++ = vempty;  // 右移指针p，跳过<free>的位置
+    memcpy(p,val,vlen);  // 将value的值保存到p指针的位置
+    return zm;  // 返回zipmap
 }
 
 /* Remove the specified key. If 'deleted' is not NULL the pointed integer is
