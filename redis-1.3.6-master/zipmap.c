@@ -362,68 +362,68 @@ unsigned char *zipmapNext(unsigned char *zm, unsigned char **key, unsigned int *
 
 /* Search a key and retrieve the pointer and len of the associated value.
  * If the key is found the function returns 1, otherwise 0. */
-int zipmapGet(unsigned char *zm, unsigned char *key, unsigned int klen, unsigned char **value, unsigned int *vlen) {
-    unsigned char *p;
+int zipmapGet(unsigned char *zm, unsigned char *key, unsigned int klen, unsigned char **value, unsigned int *vlen) {  /* 获取zipmap中指定key的value */
+    unsigned char *p;  // 定义指针p
 
-    if ((p = zipmapLookupRaw(zm,key,klen,NULL,NULL,NULL)) == NULL) return 0;
-    p += zipmapRawKeyLength(p);
-    *vlen = zipmapDecodeLength(p);
-    *value = p + ZIPMAP_LEN_BYTES(*vlen) + 1;
-    return 1;
+    if ((p = zipmapLookupRaw(zm,key,klen,NULL,NULL,NULL)) == NULL) return 0;  // 在zipmap中查找指定key，如果没有找到返回0
+    p += zipmapRawKeyLength(p);  // 右移指针，跳过<len>key，指向<len><free>value的首地址
+    *vlen = zipmapDecodeLength(p);  // 读取<len><free>value中<len>的值
+    *value = p + ZIPMAP_LEN_BYTES(*vlen) + 1;  // 右移指针，指向value
+    return 1;  // 返回1
 }
 
 /* Return 1 if the key exists, otherwise 0 is returned. */
-int zipmapExists(unsigned char *zm, unsigned char *key, unsigned int klen) {
-    return zipmapLookupRaw(zm,key,klen,NULL,NULL,NULL) != NULL;
+int zipmapExists(unsigned char *zm, unsigned char *key, unsigned int klen) {  /* 判断zipmap中是否存在指定key */
+    return zipmapLookupRaw(zm,key,klen,NULL,NULL,NULL) != NULL;  // 如果不存在返回NULL
 }
 
 /* Return the number of entries inside a zipmap */
-unsigned int zipmapLen(unsigned char *zm) {
-    unsigned char *p = zipmapRewind(zm);
-    unsigned int len = 0;
+unsigned int zipmapLen(unsigned char *zm) {  /* 获取zipmap的entry个数 */
+    unsigned char *p = zipmapRewind(zm);  // 右移指针，跳过<status>
+    unsigned int len = 0;  // 定义len，初始化为0
 
-    while((p = zipmapNext(p,NULL,NULL,NULL,NULL)) != NULL) len++;
-    return len;
+    while((p = zipmapNext(p,NULL,NULL,NULL,NULL)) != NULL) len++;  // 遍历zipmap，并将len自增
+    return len;  // 返回len
 }
 
-void zipmapRepr(unsigned char *p) {
+void zipmapRepr(unsigned char *p) {  /* 打印zipmap保存的数据 */
     unsigned int l;
 
-    printf("{status %u}",*p++);
+    printf("{status %u}",*p++);  // 打印<status>的值，并右移指针，指向第1个entry的首地址
     while(1) {
-        if (p[0] == ZIPMAP_END) {
-            printf("{end}");
+        if (p[0] == ZIPMAP_END) {  // 如果指针的第1个字节是end标志
+            printf("{end}");  //打印end跳出循环
             break;
-        } else if (p[0] == ZIPMAP_EMPTY) {
-            l = zipmapDecodeLength(p+1);
-            printf("{%u empty block}", l);
+        } else if (p[0] == ZIPMAP_EMPTY) {  // 如果指针的第1个字节是empty标志
+            l = zipmapDecodeLength(p+1);  // 获取empty的长度，，并右移指针
+            printf("{%u empty block}", l);  // 打印empty的长度，并右移指针，指向下一个entry
             p += l;
-        } else {
+        } else {  // 如果第1个字节是正常的数据
             unsigned char e;
 
-            l = zipmapDecodeLength(p);
-            printf("{key %u}",l);
-            p += zipmapEncodeLength(NULL,l);
-            fwrite(p,l,1,stdout);
-            p += l;
+            l = zipmapDecodeLength(p);  // 获取key的长度
+            printf("{key %u}",l);    // 打印key的长度
+            p += zipmapEncodeLength(NULL,l);  // 右移指针，跳过<len>，指向key的首地址
+            fwrite(p,l,1,stdout);  // 将key的值输出到控制台
+            p += l;  // 右移指针，跳过<len>key，指向<len><free>value的首地址
 
-            l = zipmapDecodeLength(p);
-            printf("{value %u}",l);
-            p += zipmapEncodeLength(NULL,l);
-            e = *p++;
-            fwrite(p,l,1,stdout);
-            p += l+e;
-            if (e) {
+            l = zipmapDecodeLength(p);  // 获取value的长度
+            printf("{value %u}",l);  // 打印value的长度
+            p += zipmapEncodeLength(NULL,l);  // 右移指针，跳过<len>，指向<free>value的首地址
+            e = *p++;  // 获取<free>的值
+            fwrite(p,l,1,stdout);  // 将value输出到控制台
+            p += l+e;  // 右移指针，跳过<free>value，指向下一个entry的首地址
+            if (e) {  // 如果free>0，则打印空白字符串，1个 . 表示1个字节
                 printf("[");
                 while(e--) printf(".");
                 printf("]");
             }
         }
     }
-    printf("\n");
+    printf("\n");  // 换行符
 }
 
-#ifdef ZIPMAP_TEST_MAIN
+#ifdef ZIPMAP_TEST_MAIN  /* 测试用例 */
 int main(void) {
     unsigned char *zm;
 
