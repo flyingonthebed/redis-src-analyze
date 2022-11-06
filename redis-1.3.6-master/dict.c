@@ -47,33 +47,33 @@
 
 /* ---------------------------- Utility funcitons --------------------------- */
 
-static void _dictPanic(const char *fmt, ...)
+static void _dictPanic(const char *fmt, ...)  /* 发生异常时，打印字典错误信息 ... 表示可以接收多个参数 */
 {
-    va_list ap;
+    va_list ap;  // 定义变量列表
 
-    va_start(ap, fmt);
+    va_start(ap, fmt);  // 格式化变量
     fprintf(stderr, "\nDICT LIBRARY PANIC: ");
     vfprintf(stderr, fmt, ap);
     fprintf(stderr, "\n\n");
-    va_end(ap);
+    va_end(ap);  // 
 }
 
-/* ------------------------- Heap Management Wrappers------------------------ */
+/* ------------------------- Heap Management Wrappers ----------------------- */
 
-static void *_dictAlloc(size_t size)
+static void *_dictAlloc(size_t size)  /* 给字典分配内存 */
 {
-    void *p = zmalloc(size);
+    void *p = zmalloc(size);  // 分配内存，获取指针
     if (p == NULL)
-        _dictPanic("Out of memory");
+        _dictPanic("Out of memory");  // 如果获取不到指针，则表示内存不足
     return p;
 }
 
-static void _dictFree(void *ptr) {
-    zfree(ptr);
+static void _dictFree(void *ptr) {  /* 释放字典内存 */
+    zfree(ptr);  // 释放字典
 }
 
 /* -------------------------- private prototypes ---------------------------- */
-
+/* 私有函数原型，定义了4个静态函数 */
 static int _dictExpandIfNeeded(dict *ht);
 static unsigned long _dictNextPower(unsigned long size);
 static int _dictKeyIndex(dict *ht, const void *key);
@@ -82,7 +82,7 @@ static int _dictInit(dict *ht, dictType *type, void *privDataPtr);
 /* -------------------------- hash functions -------------------------------- */
 
 /* Thomas Wang's 32 bit Mix Function */
-unsigned int dictIntHashFunction(unsigned int key)
+unsigned int dictIntHashFunction(unsigned int key)  /* 传入key进行位运算获取整型哈希值 */
 {
     key += ~(key << 15);
     key ^=  (key >> 10);
@@ -90,22 +90,22 @@ unsigned int dictIntHashFunction(unsigned int key)
     key ^=  (key >> 6);
     key += ~(key << 11);
     key ^=  (key >> 16);
-    return key;
+    return key;  // 返回哈希值
 }
 
 /* Identity hash function for integer keys */
-unsigned int dictIdentityHashFunction(unsigned int key)
+unsigned int dictIdentityHashFunction(unsigned int key)  /* 验证传入的key是int型的值 */
 {
     return key;
 }
 
 /* Generic hash function (a popular one from Bernstein).
  * I tested a few and this was the best. */
-unsigned int dictGenHashFunction(const unsigned char *buf, int len) {
+unsigned int dictGenHashFunction(const unsigned char *buf, int len) {  /* 通用哈希函数，传入字符数组和长度 */
     unsigned int hash = 5381;
 
     while (len--)
-        hash = ((hash << 5) + hash) + (*buf++); /* hash * 33 + c */
+        hash = ((hash << 5) + hash) + (*buf++); /* hash * 33 + c，依次对字符数组中的每个字符进行哈希运算，生成整型哈希值 */
     return hash;
 }
 
@@ -113,9 +113,9 @@ unsigned int dictGenHashFunction(const unsigned char *buf, int len) {
 
 /* Reset an hashtable already initialized with ht_init().
  * NOTE: This function should only called by ht_destroy(). */
-static void _dictReset(dict *ht)
+static void _dictReset(dict *ht)  /* 初始化字典，传入字典指针 */
 {
-    ht->table = NULL;
+    ht->table = NULL;  // 初始化ht->table成员变量
     ht->size = 0;
     ht->sizemask = 0;
     ht->used = 0;
@@ -558,7 +558,7 @@ static void _dictStringKeyValCopyHTValDestructor(void *privdata, void *val)
     _dictFree((void*)val); /* ATTENTION: const cast */
 }
 
-dictType dictTypeHeapStringCopyKey = {
+dictType dictTypeHeapStringCopyKey = {  /* 字典类型 */
     _dictStringCopyHTHashFunction,        /* hash function */
     _dictStringCopyHTKeyDup,              /* key dup */
     NULL,                               /* val dup */
