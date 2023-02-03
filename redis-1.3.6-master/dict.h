@@ -58,7 +58,7 @@ typedef struct dictType {  /* 字典（哈希表）类型结构体，文件尾�
 } dictType;
 
 typedef struct dict {  /* 字典结构体 */
-    dictEntry **table;  // 保存entry的字典表
+    dictEntry **table;  // 保存entry的哈希表数组
     dictType *type;  // 字典类型指针
     unsigned long size;  // 字典中元素的长度
     unsigned long sizemask;  // 用于计算key的哈希值

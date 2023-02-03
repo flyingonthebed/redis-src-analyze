@@ -115,96 +115,96 @@ unsigned int dictGenHashFunction(const unsigned char *buf, int len) {  /* 通用
  * NOTE: This function should only called by ht_destroy(). */
 static void _dictReset(dict *ht)  /* 初始化字典，传入字典指针 */
 {
-    ht->table = NULL;  // 初始化ht->table成员变量
-    ht->size = 0;
-    ht->sizemask = 0;
-    ht->used = 0;
+    ht->table = NULL;  // 初始化哈希表数组为空
+    ht->size = 0;  // 初始化哈希表大小
+    ht->sizemask = 0;  // 初始化哈希表大小掩码，用于计算索引值
+    ht->used = 0;  // 初始化哈希表已有节点的个数0
 }
 
 /* Create a new hash table */
-dict *dictCreate(dictType *type,
-        void *privDataPtr)
+dict *dictCreate(dictType *type,  /* 创建1个哈希表，传入类型和私有数据指针 */
+        void *privDataPtr)  /* 字典类型再文件末尾定义，分别为dictTypeHeapStringCopyKey、dictTypeHeapStrings、dictTypeHeapStringCopyKeyValue */
 {
-    dict *ht = _dictAlloc(sizeof(*ht));
+    dict *ht = _dictAlloc(sizeof(*ht));  // 给哈希表分配空间
 
-    _dictInit(ht,type,privDataPtr);
-    return ht;
+    _dictInit(ht,type,privDataPtr);  // 初始化字典，方法内部调用了 _dictReset()
+    return ht;  // 返回哈希表
 }
 
 /* Initialize the hash table */
-int _dictInit(dict *ht, dictType *type,
+int _dictInit(dict *ht, dictType *type,  /* 初始化哈希表，传入哈希表、类型、私有数据指针 */
         void *privDataPtr)
 {
-    _dictReset(ht);
-    ht->type = type;
-    ht->privdata = privDataPtr;
-    return DICT_OK;
+    _dictReset(ht);  // 调用 _dictReset()，初始化哈希表的4个成员变量
+    ht->type = type;  // 初始化哈希表的类型
+    ht->privdata = privDataPtr;  // 初始化哈希表的私有数据
+    return DICT_OK;  // 返回成功标识
 }
 
 /* Resize the table to the minimal size that contains all the elements,
  * but with the invariant of a USER/BUCKETS ration near to <= 1 */
-int dictResize(dict *ht)
+int dictResize(dict *ht)  /* 扩容字典 */
 {
-    int minimal = ht->used;
+    int minimal = ht->used;  // 获取字典中已有节点的数量
 
-    if (minimal < DICT_HT_INITIAL_SIZE)
-        minimal = DICT_HT_INITIAL_SIZE;
+    if (minimal < DICT_HT_INITIAL_SIZE)  // 如果used小于等于4
+        minimal = DICT_HT_INITIAL_SIZE;  // 将size扩展到4个
     return dictExpand(ht, minimal);
 }
 
 /* Expand or create the hashtable */
-int dictExpand(dict *ht, unsigned long size)
+int dictExpand(dict *ht, unsigned long size)  /* 扩容字典，传入哈希表、要扩展到的大小 */
 {
-    dict n; /* the new hashtable */
-    unsigned long realsize = _dictNextPower(size), i;
+    dict n; /* the new hashtable */  // 初始化1个临时字典
+    unsigned long realsize = _dictNextPower(size), i;  // 
 
     /* the size is invalid if it is smaller than the number of
      * elements already inside the hashtable */
-    if (ht->used > size)
-        return DICT_ERR;
+    if (ht->used > size)  // 如果要扩展到的大小小于已存在的个数
+        return DICT_ERR;  // 返回错误
 
-    _dictInit(&n, ht->type, ht->privdata);
-    n.size = realsize;
-    n.sizemask = realsize-1;
-    n.table = _dictAlloc(realsize*sizeof(dictEntry*));
+    _dictInit(&n, ht->type, ht->privdata);  // 初始化字典n
+    n.size = realsize;  // 将n的size设置为扩容后的大小
+    n.sizemask = realsize-1;  // 将n的大小掩码设置为扩容后大小减1
+    n.table = _dictAlloc(realsize*sizeof(dictEntry*));  // 分配n的哈希表空间为扩容后的大小
 
     /* Initialize all the pointers to NULL */
-    memset(n.table, 0, realsize*sizeof(dictEntry*));
+    memset(n.table, 0, realsize*sizeof(dictEntry*));  // 将哈希表中的指针都初始化为空
 
-    /* Copy all the elements from the old to the new table:
-     * note that if the old hash table is empty ht->size is zero,
+    /* Copy all the elements from the old to the new table:  把旧哈希表的所有元素拷贝到新哈希表中
+     * note that if the old hash table is empty ht->size is zero,  注意：如果旧哈希表是空的、size是0，扩容只会创建一个新的哈希表
      * so dictExpand just creates an hash table. */
-    n.used = ht->used;
-    for (i = 0; i < ht->size && ht->used > 0; i++) {
-        dictEntry *he, *nextHe;
+    n.used = ht->used;  // 初始化已有节点个数
+    for (i = 0; i < ht->size && ht->used > 0; i++) {  // 遍历哈希表的元素
+        dictEntry *he, *nextHe;  // 定义entry和下一个entry
 
-        if (ht->table[i] == NULL) continue;
+        if (ht->table[i] == NULL) continue;  // 如果某个索引的entry为空，继续找下一个
         
         /* For each hash entry on this slot... */
-        he = ht->table[i];
+        he = ht->table[i];  // 如果找到entry
         while(he) {
-            unsigned int h;
+            unsigned int h;  // 初始化索引变量h
 
-            nextHe = he->next;
+            nextHe = he->next;  // 保存下一个entry位置
             /* Get the new element index */
-            h = dictHashKey(ht, he->key) & n.sizemask;
+            h = dictHashKey(ht, he->key) & n.sizemask;  // 找到新元素索引
             he->next = n.table[h];
-            n.table[h] = he;
-            ht->used--;
+            n.table[h] = he;  // 将找到的entry保存到字典n中的哈希表对应的索引位置
+            ht->used--;  // 将旧哈希表待迁移的节点数减1
             /* Pass to the next element */
-            he = nextHe;
+            he = nextHe;  // 向后继续查找entry
         }
     }
-    assert(ht->used == 0);
-    _dictFree(ht->table);
+    assert(ht->used == 0);  // 断言待迁移的节点数为0
+    _dictFree(ht->table);  // 释放旧哈希表
 
     /* Remap the new hashtable in the old */
-    *ht = n;
-    return DICT_OK;
+    *ht = n;  // 将哈希表指针指向新的哈希表n
+    return DICT_OK;  // 返回成功标识
 }
 
 /* Add an element to the target hash table */
-int dictAdd(dict *ht, void *key, void *val)
+int dictAdd(dict *ht, void *key, void *val)  /*  */
 {
     int index;
     dictEntry *entry;
@@ -422,16 +422,16 @@ static int _dictExpandIfNeeded(dict *ht)
     return DICT_OK;
 }
 
-/* Our hash table capability is a power of two */
-static unsigned long _dictNextPower(unsigned long size)
+/* Our hash table capability is a power of two */  /* 哈希表entry的容量是2的幂 */
+static unsigned long _dictNextPower(unsigned long size)  /* 获取字典size的下一个幂值 */
 {
-    unsigned long i = DICT_HT_INITIAL_SIZE;
+    unsigned long i = DICT_HT_INITIAL_SIZE;  // 初始化i为4
 
-    if (size >= LONG_MAX) return LONG_MAX;
+    if (size >= LONG_MAX) return LONG_MAX;  // 如果size大于等于long型数的最大值，则返回最大值
     while(1) {
         if (i >= size)
             return i;
-        i *= 2;
+        i *= 2;  // 如果i小于size，则乘以2
     }
 }
 
