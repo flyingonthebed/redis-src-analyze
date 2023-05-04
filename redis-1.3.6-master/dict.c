@@ -152,7 +152,7 @@ int dictResize(dict *ht)  /* 扩容字典 */
     return dictExpand(ht, minimal);
 }
 
-/* Expand or create the hashtable */
+/* Expand or create the hashtable 扩容或创建哈希表 */
 int dictExpand(dict *ht, unsigned long size)  /* 扩容字典，传入哈希表、要扩展到的大小 */
 {
     dict n; /* the new hashtable */  // 初始化1个临时字典
@@ -171,9 +171,9 @@ int dictExpand(dict *ht, unsigned long size)  /* 扩容字典，传入哈希表�
     /* Initialize all the pointers to NULL */
     memset(n.table, 0, realsize*sizeof(dictEntry*));  // 将哈希表中的指针都初始化为空
 
-    /* Copy all the elements from the old to the new table:  把旧哈希表的所有元素拷贝到新哈希表中
-     * note that if the old hash table is empty ht->size is zero,  注意：如果旧哈希表是空的、size是0，扩容只会创建一个新的哈希表
-     * so dictExpand just creates an hash table. */
+    /* Copy all the elements from the old to the new table:  
+     * note that if the old hash table is empty ht->size is zero,
+     * so dictExpand just creates an hash table. */  /* 把旧哈希表的所有元素拷贝到新哈希表中, 注意：如果旧哈希表是空的、size是0，扩容只会创建一个新的哈希表 */
     n.used = ht->used;  // 初始化已有节点个数
     for (i = 0; i < ht->size && ht->used > 0; i++) {  // 遍历哈希表的元素
         dictEntry *he, *nextHe;  // 定义entry和下一个entry
@@ -204,147 +204,147 @@ int dictExpand(dict *ht, unsigned long size)  /* 扩容字典，传入哈希表�
 }
 
 /* Add an element to the target hash table */
-int dictAdd(dict *ht, void *key, void *val)  /*  */
+int dictAdd(dict *ht, void *key, void *val)  /* 向字典表添加key,value，传入key,val */
 {
-    int index;
-    dictEntry *entry;
+    int index;  // 初始化索引值
+    dictEntry *entry;  // 初始化entry
 
     /* Get the index of the new element, or -1 if
-     * the element already exists. */
-    if ((index = _dictKeyIndex(ht, key)) == -1)
+     * the element already exists. */  /* 获取元素的索引,如果元素存在则返回-1 */
+    if ((index = _dictKeyIndex(ht, key)) == -1)  // 只允许添加不存在的key,如果key已存在返回error
         return DICT_ERR;
 
-    /* Allocates the memory and stores key */
-    entry = _dictAlloc(sizeof(*entry));
-    entry->next = ht->table[index];
-    ht->table[index] = entry;
+    /* Allocates the memory and stores key */ /* 分配内存存储key */
+    entry = _dictAlloc(sizeof(*entry));  // 计算entry的大小
+    entry->next = ht->table[index];  // 将entry的后向指针指向哈希表当前位置
+    ht->table[index] = entry;  // 在哈希表当前位置存储entry
 
-    /* Set the hash entry fields. */
-    dictSetHashKey(ht, entry, key);
-    dictSetHashVal(ht, entry, val);
-    ht->used++;
-    return DICT_OK;
+    /* Set the hash entry fields. */  /* 设置entry的成员变量key,val */
+    dictSetHashKey(ht, entry, key);  // 设置key
+    dictSetHashVal(ht, entry, val);  // 设置val
+    ht->used++;  // 把哈希表的used+1
+    return DICT_OK;  // 返回ok
 }
 
 /* Add an element, discarding the old if the key already exists.
  * Return 1 if the key was added from scratch, 0 if there was already an
  * element with such key and dictReplace() just performed a value update
- * operation. */
-int dictReplace(dict *ht, void *key, void *val)
+ * operation. */  /* 如果元素已存在则添加一个元素并丢弃旧值。如果新增元素返回1，替换元素返回0 */
+int dictReplace(dict *ht, void *key, void *val)  /* 字典替换操作,传入哈希表,key,val */
 {
-    dictEntry *entry, auxentry;
+    dictEntry *entry, auxentry;  // 初始化entry和辅助entry
 
     /* Try to add the element. If the key
-     * does not exists dictAdd will suceed. */
-    if (dictAdd(ht, key, val) == DICT_OK)
+     * does not exists dictAdd will suceed. */    /* 尝试添加元素，如果不存在则会成功 */
+    if (dictAdd(ht, key, val) == DICT_OK)  // 添加entry成功返回1
         return 1;
-    /* It already exists, get the entry */
-    entry = dictFind(ht, key);
-    /* Free the old value and set the new one */
+    /* It already exists, get the entry */  /* 如果已存在则获取entry */
+    entry = dictFind(ht, key);  // 如果找到则返回已找到的entry的指针地址
+    /* Free the old value and set the new one */  /* 释放旧值且设置新值 */
     /* Set the new value and free the old one. Note that it is important
      * to do that in this order, as the value may just be exactly the same
      * as the previous one. In this context, think to reference counting,
      * you want to increment (set), and then decrement (free), and not the
      * reverse. */
-    auxentry = *entry;
-    dictSetHashVal(ht, entry, val);
-    dictFreeEntryVal(ht, &auxentry);
-    return 0;
+    auxentry = *entry;  // 将entry指针地址转存到辅助entry中
+    dictSetHashVal(ht, entry, val);  // 替换entry的val值
+    dictFreeEntryVal(ht, &auxentry);  // 释放entry的旧val值
+    return 0;  // 替换成功返回0
 }
 
-/* Search and remove an element */
-static int dictGenericDelete(dict *ht, const void *key, int nofree)
+/* Search and remove an element 查找并删除1个元素 */
+static int dictGenericDelete(dict *ht, const void *key, int nofree)  /* 通用删除,传入哈希表,key,nofree内存释放标志 */
 {
-    unsigned int h;
-    dictEntry *he, *prevHe;
+    unsigned int h;  // 初始化h
+    dictEntry *he, *prevHe;  // 初始化2个指针,前向指针和当前指针
 
-    if (ht->size == 0)
-        return DICT_ERR;
-    h = dictHashKey(ht, key) & ht->sizemask;
-    he = ht->table[h];
+    if (ht->size == 0)  // 如果哈希表没有元素
+        return DICT_ERR;  // 返回error
+    h = dictHashKey(ht, key) & ht->sizemask;  // 计算key的哈希值,找到哈希表中key的位置
+    he = ht->table[h];  // 获取哈希表中哈希值为h的entry
 
-    prevHe = NULL;
-    while(he) {
-        if (dictCompareHashKeys(ht, key, he->key)) {
+    prevHe = NULL;  // 设置前向指针为空
+    while(he) {  // 如果找到了entry
+        if (dictCompareHashKeys(ht, key, he->key)) {  // 则比较哈希表中找到的key和输入的key是否相等
             /* Unlink the element from the list */
-            if (prevHe)
-                prevHe->next = he->next;
-            else
-                ht->table[h] = he->next;
-            if (!nofree) {
-                dictFreeEntryKey(ht, he);
-                dictFreeEntryVal(ht, he);
+            if (prevHe)  // 如果前向指针有值,即哈希表中找到的key不是第1个key
+                prevHe->next = he->next;  // 则将前1个元素的后向指针指向下一个entry
+            else  // 如果在哈希表中找到的key是第1个key
+                ht->table[h] = he->next;  // 则将哈希表的头指针跳过当前entry，后移1个entry
+            if (!nofree) {  // 如果nofree为空
+                dictFreeEntryKey(ht, he);  // 释放key的内存
+                dictFreeEntryVal(ht, he);  // 释放val的内存
             }
-            _dictFree(he);
-            ht->used--;
-            return DICT_OK;
+            _dictFree(he);  // 释放指针指向的内存
+            ht->used--;  // used -1
+            return DICT_OK;  // 返回ok
         }
-        prevHe = he;
-        he = he->next;
+        prevHe = he;  // 后移指针
+        he = he->next;  // 查找下一个entry
     }
-    return DICT_ERR; /* not found */
+    return DICT_ERR; /* not found 没找到要删除的entry返回error */
 }
 
-int dictDelete(dict *ht, const void *key) {
-    return dictGenericDelete(ht,key,0);
+int dictDelete(dict *ht, const void *key) {  // 删除key且释放内存
+    return dictGenericDelete(ht,key,0);  // nofree传入0
 }
 
-int dictDeleteNoFree(dict *ht, const void *key) {
-    return dictGenericDelete(ht,key,1);
+int dictDeleteNoFree(dict *ht, const void *key) {  // 删除key不释放内存
+    return dictGenericDelete(ht,key,1);  // nofree传入1
 }
 
-/* Destroy an entire hash table */
-int _dictClear(dict *ht)
+/* Destroy an entire hash table 销毁哈希表 */
+int _dictClear(dict *ht)  /* 清空字典,传入哈希表 */
 {
-    unsigned long i;
+    unsigned long i;  // 初始化i
 
-    /* Free all the elements */
-    for (i = 0; i < ht->size && ht->used > 0; i++) {
-        dictEntry *he, *nextHe;
+    /* Free all the elements 释放所有元素 */
+    for (i = 0; i < ht->size && ht->used > 0; i++) {  // 遍历哈希表中的所有元素
+        dictEntry *he, *nextHe;  // 初始化entry指针和后向指针
 
-        if ((he = ht->table[i]) == NULL) continue;
-        while(he) {
-            nextHe = he->next;
-            dictFreeEntryKey(ht, he);
-            dictFreeEntryVal(ht, he);
-            _dictFree(he);
-            ht->used--;
-            he = nextHe;
+        if ((he = ht->table[i]) == NULL) continue;  // 如果某个哈希(索引)值为null,则判断下个哈希(索引)值
+        while(he) {  // 如果entry存在
+            nextHe = he->next;  // 把后一个entry的指针地址赋值给后向指针
+            dictFreeEntryKey(ht, he);  // 释放当前entry的key
+            dictFreeEntryVal(ht, he);  // 释放当前entry的val
+            _dictFree(he);  // 释放指针指向的内存
+            ht->used--;  // used -1
+            he = nextHe;  // 向后遍历一个entry
         }
     }
-    /* Free the table and the allocated cache structure */
-    _dictFree(ht->table);
+    /* Free the table and the allocated cache structure 释放哈希表和已分配的缓存结构(entry槽位) */
+    _dictFree(ht->table);  // 释放哈希表的内存
     /* Re-initialize the table */
-    _dictReset(ht);
+    _dictReset(ht);  // 初始化哈希表
     return DICT_OK; /* never fails */
 }
 
-/* Clear & Release the hash table */
-void dictRelease(dict *ht)
+/* Clear & Release the hash table 清空并释放哈希表 */
+void dictRelease(dict *ht)  /* 释放字典 */
 {
-    _dictClear(ht);
-    _dictFree(ht);
+    _dictClear(ht);  // 清空字典
+    _dictFree(ht);  // 释放字典
 }
 
-dictEntry *dictFind(dict *ht, const void *key)
+dictEntry *dictFind(dict *ht, const void *key)  /* 在字典中查找key,传入哈希表,key */
 {
-    dictEntry *he;
-    unsigned int h;
+    dictEntry *he;  // 初始化entry指针变量
+    unsigned int h;  // 初始化h
 
-    if (ht->size == 0) return NULL;
-    h = dictHashKey(ht, key) & ht->sizemask;
-    he = ht->table[h];
-    while(he) {
-        if (dictCompareHashKeys(ht, key, he->key))
-            return he;
-        he = he->next;
+    if (ht->size == 0) return NULL;  // 如果哈希表中没有元素返回null
+    h = dictHashKey(ht, key) & ht->sizemask;  // 获取传入key的哈希(索引)值
+    he = ht->table[h];  // 获取头指针指向的entry
+    while(he) {  // 如果entry存在
+        if (dictCompareHashKeys(ht, key, he->key))  // 比较哈希表中的key和传入的key是否相同
+            return he;  // 相同则返回哈希表中的entry
+        he = he->next;  // 向后遍历一个entry
     }
-    return NULL;
+    return NULL;  // 遍历完成后还未找到则返回null
 }
 
-dictIterator *dictGetIterator(dict *ht)
+dictIterator *dictGetIterator(dict *ht)  /* 生成字典迭代器 */
 {
-    dictIterator *iter = _dictAlloc(sizeof(*iter));
+    dictIterator *iter = _dictAlloc(sizeof(*iter));  // 
 
     iter->ht = ht;
     iter->index = -1;
@@ -353,7 +353,7 @@ dictIterator *dictGetIterator(dict *ht)
     return iter;
 }
 
-dictEntry *dictNext(dictIterator *iter)
+dictEntry *dictNext(dictIterator *iter)  /* 遍历字典迭代器 */
 {
     while (1) {
         if (iter->entry == NULL) {
@@ -374,9 +374,9 @@ dictEntry *dictNext(dictIterator *iter)
     return NULL;
 }
 
-void dictReleaseIterator(dictIterator *iter)
+void dictReleaseIterator(dictIterator *iter)  /* 释放字典迭代器 */
 {
-    _dictFree(iter);
+    _dictFree(iter);  // 释放迭代器指针指向的内存
 }
 
 /* Return a random entry from the hash table. Useful to
