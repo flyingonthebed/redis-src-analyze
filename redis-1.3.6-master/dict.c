@@ -344,7 +344,7 @@ dictEntry *dictFind(dict *ht, const void *key)  /* 在字典中查找key,传入�
 
 dictIterator *dictGetIterator(dict *ht)  /* 生成字典迭代器 */
 {
-    dictIterator *iter = _dictAlloc(sizeof(*iter));  // 
+    dictIterator *iter = _dictAlloc(sizeof(*iter));  // 给迭代器分配内存
 
     iter->ht = ht;
     iter->index = -1;
