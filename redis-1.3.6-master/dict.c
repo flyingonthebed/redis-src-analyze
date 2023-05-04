@@ -138,7 +138,7 @@ int _dictInit(dict *ht, dictType *type,  /* 初始化哈希表，传入哈希表
     _dictReset(ht);  // 调用 _dictReset()，初始化哈希表的4个成员变量
     ht->type = type;  // 初始化哈希表的类型
     ht->privdata = privDataPtr;  // 初始化哈希表的私有数据
-    return DICT_OK;  // 返回成功标识
+    return DICT_OK;  // 返回成功标识0
 }
 
 /* Resize the table to the minimal size that contains all the elements,
@@ -200,7 +200,7 @@ int dictExpand(dict *ht, unsigned long size)  /* 扩容字典，传入哈希表�
 
     /* Remap the new hashtable in the old */
     *ht = n;  // 将哈希表指针指向新的哈希表n
-    return DICT_OK;  // 返回成功标识
+    return DICT_OK;  // 返回成功标识0
 }
 
 /* Add an element to the target hash table */
@@ -223,7 +223,7 @@ int dictAdd(dict *ht, void *key, void *val)  /* 向字典表添加key,value，�
     dictSetHashKey(ht, entry, key);  // 设置key
     dictSetHashVal(ht, entry, val);  // 设置val
     ht->used++;  // 把哈希表的used+1
-    return DICT_OK;  // 返回ok
+    return DICT_OK;  // 返回成功标识0
 }
 
 /* Add an element, discarding the old if the key already exists.
@@ -236,8 +236,8 @@ int dictReplace(dict *ht, void *key, void *val)  /* 字典替换操作,传入哈
 
     /* Try to add the element. If the key
      * does not exists dictAdd will suceed. */    /* 尝试添加元素，如果不存在则会成功 */
-    if (dictAdd(ht, key, val) == DICT_OK)  // 添加entry成功返回1
-        return 1;
+    if (dictAdd(ht, key, val) == DICT_OK)  // 添加entry成功结果为0
+        return 1;  // 返回1
     /* It already exists, get the entry */  /* 如果已存在则获取entry */
     entry = dictFind(ht, key);  // 如果找到则返回已找到的entry的指针地址
     /* Free the old value and set the new one */  /* 释放旧值且设置新值 */
@@ -277,7 +277,7 @@ static int dictGenericDelete(dict *ht, const void *key, int nofree)  /* 通用�
             }
             _dictFree(he);  // 释放指针指向的内存
             ht->used--;  // used -1
-            return DICT_OK;  // 返回ok
+            return DICT_OK;  // 返回成功标识0
         }
         prevHe = he;  // 后移指针
         he = he->next;  // 查找下一个entry
@@ -346,32 +346,32 @@ dictIterator *dictGetIterator(dict *ht)  /* 生成字典迭代器 */
 {
     dictIterator *iter = _dictAlloc(sizeof(*iter));  // 给迭代器分配内存
 
-    iter->ht = ht;
-    iter->index = -1;
-    iter->entry = NULL;
-    iter->nextEntry = NULL;
-    return iter;
+    iter->ht = ht;  // 初始化迭代器的哈希表
+    iter->index = -1;  // 初始化迭代器的索引:-1,为了+1后为0,能够在不增加代码复杂度的前提下,遍历所有元素
+    iter->entry = NULL;  // 初始化entry为null
+    iter->nextEntry = NULL;  // 初始化后向指针为null
+    return iter;  // 返回迭代器指针变量
 }
 
 dictEntry *dictNext(dictIterator *iter)  /* 遍历字典迭代器 */
 {
-    while (1) {
-        if (iter->entry == NULL) {
-            iter->index++;
+    while (1) {  // 循环执行
+        if (iter->entry == NULL) {  // 如果当前哈希索引值遍历结束
+            iter->index++;  // 则将索引值+1,遍历下一个哈希值的entry
             if (iter->index >=
-                    (signed)iter->ht->size) break;
+                    (signed)iter->ht->size) break;  // 直到哈希索引值超出了哈希表的索引值个数，跳出死循环
             iter->entry = iter->ht->table[iter->index];
-        } else {
-            iter->entry = iter->nextEntry;
+        } else {  // 当前索引值遍历未结束时
+            iter->entry = iter->nextEntry;  // 向后遍历一个entry
         }
-        if (iter->entry) {
+        if (iter->entry) {  // 如果当前entry存在
             /* We need to save the 'next' here, the iterator user
-             * may delete the entry we are returning. */
-            iter->nextEntry = iter->entry->next;
-            return iter->entry;
+             * may delete the entry we are returning. */  /* 我们需要保存下一个entry的地址,因为迭代器用户可能会删除我们要返回的条目 */
+            iter->nextEntry = iter->entry->next;  // 则保存下一个entry的地址到后向指针变量中
+            return iter->entry;  // 返回当前entry
         }
     }
-    return NULL;
+    return NULL;  // 跳出后返回null
 }
 
 void dictReleaseIterator(dictIterator *iter)  /* 释放字典迭代器 */
@@ -380,46 +380,46 @@ void dictReleaseIterator(dictIterator *iter)  /* 释放字典迭代器 */
 }
 
 /* Return a random entry from the hash table. Useful to
- * implement randomized algorithms */
-dictEntry *dictGetRandomKey(dict *ht)
+ * implement randomized algorithms */  /* 返回哈希表中的随机条目。对于实现随机化算法很有用 */
+dictEntry *dictGetRandomKey(dict *ht)  /* 获取字典中1个随机key */
 {
-    dictEntry *he;
-    unsigned int h;
-    int listlen, listele;
+    dictEntry *he;  // 初始化entry指针变量
+    unsigned int h;  // 初始化哈希索引值h
+    int listlen, listele;  // 初始化listlen,listle
 
-    if (ht->used == 0) return NULL;
+    if (ht->used == 0) return NULL;  // 如果哈希表的used为0,返回null
     do {
-        h = random() & ht->sizemask;
-        he = ht->table[h];
-    } while(he == NULL);
+        h = random() & ht->sizemask;  // 获取随机哈希索引值
+        he = ht->table[h];  // 找到1个头指针指向的entry,即指向了1个随机的哈希桶
+    } while(he == NULL);  // entry为null时继续遍历,知道找到1个非空的entry
 
     /* Now we found a non empty bucket, but it is a linked
      * list and we need to get a random element from the list.
      * The only sane way to do so is to count the element and
-     * select a random index. */
-    listlen = 0;
-    while(he) {
-        he = he->next;
-        listlen++;
+     * select a random index. */  /* 此时我们找到了1个非空桶,但它指向了1个链表,我们需要从这个链表中找到1个随机元素。唯一明智的方法是计算元素数量并选择一个随机索引。 */
+    listlen = 0;  // 初始化链表长度为0
+    while(he) {  // 当entry非空时
+        he = he->next;  // 向后遍历一个entry
+        listlen++;  // 累加得到链表的元素总数
     }
-    listele = random() % listlen;
-    he = ht->table[h];
-    while(listele--) he = he->next;
-    return he;
+    listele = random() % listlen;  // 生成链表的随机索引值
+    he = ht->table[h];  // 重新指向刚才找到的随机链表
+    while(listele--) he = he->next;  // 遍历链表,直到返回随机entry
+    return he;  // 返回entry
 }
 
 /* ------------------------- private functions ------------------------------ */
-
-/* Expand the hash table if needed */
-static int _dictExpandIfNeeded(dict *ht)
+/* 私有方法 */
+/* Expand the hash table if needed 如果需要的话,扩展哈希表 */
+static int _dictExpandIfNeeded(dict *ht)  /* 按需扩展字典,传入哈希表 */
 {
     /* If the hash table is empty expand it to the intial size,
-     * if the table is "full" dobule its size. */
-    if (ht->size == 0)
-        return dictExpand(ht, DICT_HT_INITIAL_SIZE);
-    if (ht->used == ht->size)
-        return dictExpand(ht, ht->size*2);
-    return DICT_OK;
+     * if the table is "full" dobule its size. */  /* 如果哈希表为空扩展到初始化大小,如果哈希表满了则扩展到2倍大小 */
+    if (ht->size == 0)  // 如果size为0
+        return dictExpand(ht, DICT_HT_INITIAL_SIZE);  // 扩展到 DICT_HT_INITIAL_SIZE
+    if (ht->used == ht->size)  // 如果size用完了
+        return dictExpand(ht, ht->size*2);  // 扩展到size的2倍
+    return DICT_OK;  // 返回成功标识0
 }
 
 /* Our hash table capability is a power of two */  /* 哈希表entry的容量是2的幂 */
@@ -437,78 +437,78 @@ static unsigned long _dictNextPower(unsigned long size)  /* 获取字典size的�
 
 /* Returns the index of a free slot that can be populated with
  * an hash entry for the given 'key'.
- * If the key already exists, -1 is returned. */
+ * If the key already exists, -1 is returned. */  /* 返回一个可用的空槽位的索引，该槽位可以用于存储给定“key”的哈希表条目。如果key存在则返回-1 */
 static int _dictKeyIndex(dict *ht, const void *key)
 {
-    unsigned int h;
-    dictEntry *he;
+    unsigned int h;  // 初始化哈希索引值
+    dictEntry *he;  // 初始化entry指针变量
 
     /* Expand the hashtable if needed */
-    if (_dictExpandIfNeeded(ht) == DICT_ERR)
-        return -1;
-    /* Compute the key hash value */
-    h = dictHashKey(ht, key) & ht->sizemask;
-    /* Search if this slot does not already contain the given key */
-    he = ht->table[h];
-    while(he) {
-        if (dictCompareHashKeys(ht, key, he->key))
-            return -1;
-        he = he->next;
+    if (_dictExpandIfNeeded(ht) == DICT_ERR)  // 按需扩展哈希表,如果结果为1
+        return -1;  // 返回-1
+    /* Compute the key hash value 比较key的哈希值 */
+    h = dictHashKey(ht, key) & ht->sizemask;  // 获取哈希表中的key的哈希值
+    /* Search if this slot does not already contain the given key 查找这个槽是否已经包含传入的key */
+    he = ht->table[h];  // 找到1个头指针指向的entry,即指向了哈希桶
+    while(he) {  // entry非空时遍历
+        if (dictCompareHashKeys(ht, key, he->key))  // 比较传入的key和哈希表中的key是否相等
+            return -1;  // 相等返回-1,即不用存储该key
+        he = he->next;  // 向后遍历一个entry
     }
-    return h;
+    return h;  // 返回哈希索引值
 }
 
-void dictEmpty(dict *ht) {
-    _dictClear(ht);
+void dictEmpty(dict *ht) {  /* 清空字典,传入哈希表 */
+    _dictClear(ht);  // 调用私有方法清空哈希表
 }
 
-#define DICT_STATS_VECTLEN 50
-void dictPrintStats(dict *ht) {
-    unsigned long i, slots = 0, chainlen, maxchainlen = 0;
-    unsigned long totchainlen = 0;
-    unsigned long clvector[DICT_STATS_VECTLEN];
+#define DICT_STATS_VECTLEN 50  // 定义字典统计信息中链表的个数
+void dictPrintStats(dict *ht) {  /* 打印字典统计信息,方便调试,传入哈希表 */
+    unsigned long i, slots = 0, chainlen, maxchainlen = 0;  // 初始化i,链表长度. 初始化哈希槽个数为0,最大链表长度为0
+    unsigned long totchainlen = 0;  // 初始化链表总长度为0
+    unsigned long clvector[DICT_STATS_VECTLEN];  // 初始化链表向量数组,长度50(即统计直方图,包含N个元素的链表有几个,N<=49)
 
-    if (ht->used == 0) {
-        printf("No stats available for empty dictionaries\n");
-        return;
+    if (ht->used == 0) {  // 如果哈希表used为0
+        printf("No stats available for empty dictionaries\n");  // 输出:空字典没有可用的统计数据
+        return;  // 直接返回
     }
 
-    for (i = 0; i < DICT_STATS_VECTLEN; i++) clvector[i] = 0;
-    for (i = 0; i < ht->size; i++) {
-        dictEntry *he;
+    for (i = 0; i < DICT_STATS_VECTLEN; i++) clvector[i] = 0;  // 初始化向量数组中各元素为0
+    for (i = 0; i < ht->size; i++) {  // 遍历哈希表
+        dictEntry *he;  // 初始化entry
 
-        if (ht->table[i] == NULL) {
-            clvector[0]++;
+        if (ht->table[i] == NULL) {  // 如果哈希表中某个链表为空
+            clvector[0]++;  // 则统计直方图中0个元素的链表个数+1
             continue;
         }
-        slots++;
-        /* For each hash entry on this slot... */
-        chainlen = 0;
-        he = ht->table[i];
-        while(he) {
-            chainlen++;
-            he = he->next;
+        slots++;  // 哈希槽个数+1
+        /* For each hash entry on this slot... 继续遍历这个哈希槽上的每个entry */
+        chainlen = 0;  // 初始化链表长度为0
+        he = ht->table[i];  // 找到1个头指针指向的entry,即指向了哈希桶
+        while(he) {  // entry非空时遍历
+            chainlen++;  // 链表长度+1,得到链表长度
+            he = he->next;  // 向后遍历一个entry
         }
-        clvector[(chainlen < DICT_STATS_VECTLEN) ? chainlen : (DICT_STATS_VECTLEN-1)]++;
-        if (chainlen > maxchainlen) maxchainlen = chainlen;
-        totchainlen += chainlen;
+        clvector[(chainlen < DICT_STATS_VECTLEN) ? chainlen : (DICT_STATS_VECTLEN-1)]++;  // 统计直方图中N个元素的链表个数+1.如果N<50则N=链表长度,如果N>=50,则N=49
+        if (chainlen > maxchainlen) maxchainlen = chainlen;  // 如果链表长度>最大链表长度,则更新最大链表长度
+        totchainlen += chainlen;  // 累加链表长度,得到链表总长度
     }
-    printf("Hash table stats:\n");
-    printf(" table size: %ld\n", ht->size);
-    printf(" number of elements: %ld\n", ht->used);
-    printf(" different slots: %ld\n", slots);
-    printf(" max chain length: %ld\n", maxchainlen);
-    printf(" avg chain length (counted): %.02f\n", (float)totchainlen/slots);
-    printf(" avg chain length (computed): %.02f\n", (float)ht->used/slots);
-    printf(" Chain length distribution:\n");
-    for (i = 0; i < DICT_STATS_VECTLEN-1; i++) {
-        if (clvector[i] == 0) continue;
-        printf("   %s%ld: %ld (%.02f%%)\n",(i == DICT_STATS_VECTLEN-1)?">= ":"", i, clvector[i], ((float)clvector[i]/ht->size)*100);
+    printf("Hash table stats:\n");  // 输出:哈希表统计信息
+    printf(" table size: %ld\n", ht->size);  // 表的大小
+    printf(" number of elements: %ld\n", ht->used);  // 元素的个数
+    printf(" different slots: %ld\n", slots);  // 哈希槽个数
+    printf(" max chain length: %ld\n", maxchainlen);  // 最大链表长度
+    printf(" avg chain length (counted): %.02f\n", (float)totchainlen/slots);  // 平均链表长度
+    printf(" avg chain length (computed): %.02f\n", (float)ht->used/slots);  // 
+    printf(" Chain length distribution:\n");  // 链长度分布情况
+    for (i = 0; i < DICT_STATS_VECTLEN-1; i++) {  // 遍历直方图数组
+        if (clvector[i] == 0) continue;  // 元素个数为0的链表不输出统计信息
+        printf("   %s%ld: %ld (%.02f%%)\n",(i == DICT_STATS_VECTLEN-1)?">= ":"", i, clvector[i], ((float)clvector[i]/ht->size)*100);  // 输出每个非空的链表的元素个数占哈希表的百分比
     }
 }
 
 /* ----------------------- StringCopy Hash Table Type ------------------------*/
-
+/* 哈希表类型结构体的字符串拷贝方法 */
 static unsigned int _dictStringCopyHTHashFunction(const void *key)
 {
     return dictGenHashFunction(key, strlen(key));
@@ -557,7 +557,7 @@ static void _dictStringKeyValCopyHTValDestructor(void *privdata, void *val)
 
     _dictFree((void*)val); /* ATTENTION: const cast */
 }
-
+/* 定义了3种字典类型 */
 dictType dictTypeHeapStringCopyKey = {  /* 字典类型 */
     _dictStringCopyHTHashFunction,        /* hash function */
     _dictStringCopyHTKeyDup,              /* key dup */
