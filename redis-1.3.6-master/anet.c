@@ -106,97 +106,97 @@ int anetTcpKeepAlive(char *err, int fd)  /* 设置TCP连接保持 */
 
 int anetResolve(char *err, char *host, char *ipbuf)  /* 解析主机名,返回ip地址 */
 {
-    struct sockaddr_in sa; // 初始化结构体
+    struct sockaddr_in sa; // 初始化socket地址结构体
 
-    sa.sin_family = AF_INET;  //
-    if (inet_aton(host, &sa.sin_addr) == 0) {  // inet_aton() 将ip地址转换为整型值
-        struct hostent *he;  // 初始化结构体
+    sa.sin_family = AF_INET;  // 地址族,AF_INET表示ipv4
+    if (inet_aton(host, &sa.sin_addr) == 0) {  // inet_aton() 将主机名或ip地址转换为32位整型值存入sa.sin_addr,返回1表示成功(host为ip地址时成功)
+        struct hostent *he;  // 如果转换不成功则初始化结构体(host为主机名时失败)
 
-        he = gethostbyname(host);  // 获取ip地址
-        if (he == NULL) {  // 如果ip地址为空
-            anetSetError(err, "can't resolve: %s\n", host);
-            return ANET_ERR;
+        he = gethostbyname(host);  // 此时host不是ip地址,尝试将host作为主机名,再次解析为32位整数
+        if (he == NULL) {  // 如果结果为空
+            anetSetError(err, "can't resolve: %s\n", host);  // 说明host即不是ip地址也不是主机名,无法解析
+            return ANET_ERR;  // 返回error
         }
-        memcpy(&sa.sin_addr, he->h_addr, sizeof(struct in_addr));  // h_addr是1个宏定义,同h_addr_list[0].将h_addr拷贝到sin_addr中
+        memcpy(&sa.sin_addr, he->h_addr, sizeof(struct in_addr));  // h_addr是1个宏定义,同h_addr_list[0].将h_addr的32位整型值拷贝到sin_addr中
     }
-    strcpy(ipbuf,inet_ntoa(sa.sin_addr));  // inet_ntoa() 将整型值转换为ip地址,存到ipbuf中
-    return ANET_OK;
+    strcpy(ipbuf,inet_ntoa(sa.sin_addr));  // inet_ntoa() 将32位整型值转换为ip地址,存到ipbuf中
+    return ANET_OK;  // 返回ok
 }
 
-#define ANET_CONNECT_NONE 0
-#define ANET_CONNECT_NONBLOCK 1
-static int anetTcpGenericConnect(char *err, char *addr, int port, int flags)
+#define ANET_CONNECT_NONE 0  // 阻塞标识
+#define ANET_CONNECT_NONBLOCK 1  //非阻塞标识
+static int anetTcpGenericConnect(char *err, char *addr, int port, int flags)  /* TCP通用连接,传入错误信息,主机名或ip地址,端口,阻塞标识 */
 {
-    int s, on = 1;
-    struct sockaddr_in sa;
+    int s, on = 1;  // 初始化socket文件描述符和缓冲区指针
+    struct sockaddr_in sa;  // 初始化socket地址结构体
 
-    if ((s = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
+    if ((s = socket(AF_INET, SOCK_STREAM, 0)) == -1) {  // 创建TCP socket,SOCK_STREAM表示TCP连接
         anetSetError(err, "creating socket: %s\n", strerror(errno));
-        return ANET_ERR;
+        return ANET_ERR;  // 创建失败返回error
     }
     /* Make sure connection-intensive things like the redis benckmark
-     * will be able to close/open sockets a zillion of times */
-    setsockopt(s, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on));
+     * will be able to close/open sockets a zillion of times */  /* 确保连接密集型的任务（例如Redis基准测试）能够开关套接字数十亿次 */
+    setsockopt(s, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on));  // 告诉操作系统允许多个套接字绑定到同一个端口号,并在关闭套接字后立即释放该端口号,从而使得服务器程序更加健壮和高效.SO_REUSEADDR,允许将套接字绑定到已在使用中的地址
 
-    sa.sin_family = AF_INET;
-    sa.sin_port = htons(port);
-    if (inet_aton(addr, &sa.sin_addr) == 0) {
-        struct hostent *he;
+    sa.sin_family = AF_INET;  // AF_INET=2
+    sa.sin_port = htons(port);  // 传入端口给socket结构体
+    if (inet_aton(addr, &sa.sin_addr) == 0) {  // inet_aton() 将主机名或ip地址转换为32位整型值存入sa.sin_addr,返回1表示成功(host为ip地址时成功)
+        struct hostent *he;  // 如果转换不成功则初始化结构体(host为主机名时失败)
 
-        he = gethostbyname(addr);
-        if (he == NULL) {
-            anetSetError(err, "can't resolve: %s\n", addr);
-            close(s);
-            return ANET_ERR;
+        he = gethostbyname(addr);  // 此时host不是ip地址,尝试将host作为主机名,再次解析为32位整数
+        if (he == NULL) {  // 如果结果为空
+            anetSetError(err, "can't resolve: %s\n", addr);  // 说明host即不是ip地址也不是主机名,无法解析
+            close(s);  // 关闭socket文件描述符
+            return ANET_ERR;  // 返回error
         }
-        memcpy(&sa.sin_addr, he->h_addr, sizeof(struct in_addr));
+        memcpy(&sa.sin_addr, he->h_addr, sizeof(struct in_addr));  // h_addr是1个宏定义,同h_addr_list[0].将h_addr的32位整型值拷贝到sin_addr中
     }
-    if (flags & ANET_CONNECT_NONBLOCK) {
-        if (anetNonBlock(err,s) != ANET_OK)
-            return ANET_ERR;
+    if (flags & ANET_CONNECT_NONBLOCK) {  // 如果传入标识为非阻塞标识1
+        if (anetNonBlock(err,s) != ANET_OK)  // 则设置socket为非阻塞模式
+            return ANET_ERR;  // 如果设置失败返回error
     }
-    if (connect(s, (struct sockaddr*)&sa, sizeof(sa)) == -1) {
-        if (errno == EINPROGRESS &&
+    if (connect(s, (struct sockaddr*)&sa, sizeof(sa)) == -1) {  // 调用connect()连接socket
+        if (errno == EINPROGRESS &&  // EINPROGRESS是一个表示非阻塞套接字正在连接过程中的错误号,意味着当前的连接请求已经启动,但是仍在进行中,尚未完成
             flags & ANET_CONNECT_NONBLOCK)
             return s;
 
-        anetSetError(err, "connect: %s\n", strerror(errno));
-        close(s);
-        return ANET_ERR;
+        anetSetError(err, "connect: %s\n", strerror(errno));  // 其他错误号返回错误信息
+        close(s);  // 关闭socket文件描述符
+        return ANET_ERR;  // 返回error
     }
-    return s;
+    return s;  // 连接成功,返回socket文件描述符
 }
 
-int anetTcpConnect(char *err, char *addr, int port)
+int anetTcpConnect(char *err, char *addr, int port)  /* TCP协议阻塞连接 */
 {
-    return anetTcpGenericConnect(err,addr,port,ANET_CONNECT_NONE);
+    return anetTcpGenericConnect(err,addr,port,ANET_CONNECT_NONE);  // 传入了ANET_CONNECT_NONE阻塞标识
 }
 
-int anetTcpNonBlockConnect(char *err, char *addr, int port)
+int anetTcpNonBlockConnect(char *err, char *addr, int port)  /* TCP协议非阻塞连接 */
 {
-    return anetTcpGenericConnect(err,addr,port,ANET_CONNECT_NONBLOCK);
+    return anetTcpGenericConnect(err,addr,port,ANET_CONNECT_NONBLOCK);  // 传入了ANET_CONNECT_NONBLOCK非阻塞标识
 }
 
 /* Like read(2) but make sure 'count' is read before to return
- * (unless error or EOF condition is encountered) */
-int anetRead(int fd, char *buf, int count)
+ * (unless error or EOF condition is encountered) */  /* 类似于 read(2),但要确保在返回之前读取 'count'(除非遇到错误或 EOF 条件) */
+int anetRead(int fd, char *buf, int count)  /* 从socket读取count个字节写入到缓冲区 */
 {
-    int nread, totlen = 0;
-    while(totlen != count) {
-        nread = read(fd,buf,count-totlen);
-        if (nread == 0) return totlen;
-        if (nread == -1) return -1;
-        totlen += nread;
-        buf += nread;
+    int nread, totlen = 0;  // 初始化单次读取到的个数和读取到的总个数
+    while(totlen != count) {  // 如果读取到的总数比传入的个数少则继续读取
+        nread = read(fd,buf,count-totlen);  // 单次读取到的个数
+        if (nread == 0) return totlen;  // nread返回0标识已读取完
+        if (nread == -1) return -1;  // 读取失败返回-1
+        totlen += nread;  // 累加读取的总个数
+        buf += nread;  // 后移缓冲区指针,跳过已写入的位置
     }
-    return totlen;
+    return totlen;  // 返回读取到的总个数
 }
 
 /* Like write(2) but make sure 'count' is read before to return
- * (unless error is encountered) */
-int anetWrite(int fd, char *buf, int count)
+ * (unless error is encountered) */  /* 与 write(2) 函数类似，但是它会确保在返回之前读取完 count 所指定的字节数(除非遇到错误) */
+int anetWrite(int fd, char *buf, int count)  /* 从缓冲区读取count个字节写入到socket */
 {
-    int nwritten, totlen = 0;
+    int nwritten, totlen = 0;  // 含义与anetRead()相同
     while(totlen != count) {
         nwritten = write(fd,buf,count-totlen);
         if (nwritten == 0) return totlen;
@@ -207,55 +207,55 @@ int anetWrite(int fd, char *buf, int count)
     return totlen;
 }
 
-int anetTcpServer(char *err, int port, char *bindaddr)
+int anetTcpServer(char *err, int port, char *bindaddr)  /* TCP协议服务端,传入server的bind地址 */
 {
-    int s, on = 1;
-    struct sockaddr_in sa;
+    int s, on = 1;  // 初始化socket和缓冲区指针
+    struct sockaddr_in sa;  // 初始化socket地址结构体
     
-    if ((s = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
+    if ((s = socket(AF_INET, SOCK_STREAM, 0)) == -1) {  // 创建socket
         anetSetError(err, "socket: %s\n", strerror(errno));
         return ANET_ERR;
     }
-    if (setsockopt(s, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on)) == -1) {
+    if (setsockopt(s, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on)) == -1) {  // 告诉操作系统允许多个套接字绑定到同一个端口号,并在关闭套接字后立即释放该端口号,从而使得服务器程序更加健壮和高效
         anetSetError(err, "setsockopt SO_REUSEADDR: %s\n", strerror(errno));
         close(s);
         return ANET_ERR;
     }
-    memset(&sa,0,sizeof(sa));
-    sa.sin_family = AF_INET;
-    sa.sin_port = htons(port);
-    sa.sin_addr.s_addr = htonl(INADDR_ANY);
-    if (bindaddr) {
-        if (inet_aton(bindaddr, &sa.sin_addr) == 0) {
+    memset(&sa,0,sizeof(sa));  // 给sa结构体分配内存,以存放连接信息
+    sa.sin_family = AF_INET;  // ipv4
+    sa.sin_port = htons(port);  // port
+    sa.sin_addr.s_addr = htonl(INADDR_ANY);  // 将sockaddr_in结构体的sin_addr成员变量设置为本机的任意一个可用IP地址(INADDR_ANY),以便socket监听该IP地址接收发送数据.INADDR_ANY表示0.0.0.0
+    if (bindaddr) {  // 如果定义了服务端的bind地址
+        if (inet_aton(bindaddr, &sa.sin_addr) == 0) {  // 转换ipv4地址为32位整型值,此处没有he结构体和gethostbyname函数逻辑,不能传入主机名
             anetSetError(err, "Invalid bind address\n");
             close(s);
             return ANET_ERR;
         }
     }
-    if (bind(s, (struct sockaddr*)&sa, sizeof(sa)) == -1) {
+    if (bind(s, (struct sockaddr*)&sa, sizeof(sa)) == -1) {  // 绑定传入的ip地址
         anetSetError(err, "bind: %s\n", strerror(errno));
         close(s);
         return ANET_ERR;
     }
-    if (listen(s, 511) == -1) { /* the magic 511 constant is from nginx */
+    if (listen(s, 511) == -1) { /* the magic 511 constant is from nginx */  /* 借用了nignx的魔法数,最大监听511个连接 */
         anetSetError(err, "listen: %s\n", strerror(errno));
         close(s);
         return ANET_ERR;
     }
-    return s;
+    return s;  // 返回socket
 }
 
-int anetAccept(char *err, int serversock, char *ip, int *port)
+int anetAccept(char *err, int serversock, char *ip, int *port)  /* 接受客户端的连接生成socket */
 {
-    int fd;
-    struct sockaddr_in sa;
-    unsigned int saLen;
+    int fd;  // 初始化文件描述符
+    struct sockaddr_in sa;  // 初始化socket结构体,保存客户端ip,port
+    unsigned int saLen;  // 初始化socket的长度
 
     while(1) {
         saLen = sizeof(sa);
-        fd = accept(serversock, (struct sockaddr*)&sa, &saLen);
-        if (fd == -1) {
-            if (errno == EINTR)
+        fd = accept(serversock, (struct sockaddr*)&sa, &saLen);  // 把每1个客户端的socket生成不同的文件描述符
+        if (fd == -1) {  // 如果生成失败
+            if (errno == EINTR)  // 在socket编程中,如果调用recv或send等函数时出现EINTR错误,则应该重新调用该函数,所以继续
                 continue;
             else {
                 anetSetError(err, "accept: %s\n", strerror(errno));
@@ -266,5 +266,5 @@ int anetAccept(char *err, int serversock, char *ip, int *port)
     }
     if (ip) strcpy(ip,inet_ntoa(sa.sin_addr));
     if (port) *port = ntohs(sa.sin_port);
-    return fd;
+    return fd;  // 返回socket
 }
