@@ -45,7 +45,7 @@
 
 #include "anet.h"
 
-static void anetSetError(char *err, const char *fmt, ...)
+static void anetSetError(char *err, const char *fmt, ...)  /* 打印错误信息,传入错误信息和格式,可传入多个参数 */
 {
     va_list ap;
 
@@ -55,28 +55,28 @@ static void anetSetError(char *err, const char *fmt, ...)
     va_end(ap);
 }
 
-int anetNonBlock(char *err, int fd)
+int anetNonBlock(char *err, int fd)  /* 非阻塞socket,传入错误信息和socket文件描述符 */
 {
-    int flags;
+    int flags;  // 初始化标识
 
     /* Set the socket nonblocking.
      * Note that fcntl(2) for F_GETFL and F_SETFL can't be
-     * interrupted by a signal. */
-    if ((flags = fcntl(fd, F_GETFL)) == -1) {
+     * interrupted by a signal. */  /* 设置非阻塞socket.注意，针对 F_GETFL 和 F_SETFL 的 fcntl(2) 无法被信号中断 */
+    if ((flags = fcntl(fd, F_GETFL)) == -1) {  // F_GETFL 获取文件状态标志
         anetSetError(err, "fcntl(F_GETFL): %s\n", strerror(errno));
         return ANET_ERR;
     }
-    if (fcntl(fd, F_SETFL, flags | O_NONBLOCK) == -1) {
+    if (fcntl(fd, F_SETFL, flags | O_NONBLOCK) == -1) {  // 设置文件状态标志,O_NONBLOCK为非阻塞模式
         anetSetError(err, "fcntl(F_SETFL,O_NONBLOCK): %s\n", strerror(errno));
         return ANET_ERR;
     }
     return ANET_OK;
 }
 
-int anetTcpNoDelay(char *err, int fd)
+int anetTcpNoDelay(char *err, int fd)  /* 设置非延迟TCP传输 */
 {
     int yes = 1;
-    if (setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, &yes, sizeof(yes)) == -1)
+    if (setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, &yes, sizeof(yes)) == -1)  // setsockopt() 用于she'zhi与某个套接字关联的选项.开启TCP_NODELAY将禁用 Nagle's Algorithm
     {
         anetSetError(err, "setsockopt TCP_NODELAY: %s\n", strerror(errno));
         return ANET_ERR;
@@ -84,7 +84,7 @@ int anetTcpNoDelay(char *err, int fd)
     return ANET_OK;
 }
 
-int anetSetSendBuffer(char *err, int fd, int buffsize)
+int anetSetSendBuffer(char *err, int fd, int buffsize)  /* 设置发送缓冲区 */
 {
     if (setsockopt(fd, SOL_SOCKET, SO_SNDBUF, &buffsize, sizeof(buffsize)) == -1)
     {
@@ -94,7 +94,7 @@ int anetSetSendBuffer(char *err, int fd, int buffsize)
     return ANET_OK;
 }
 
-int anetTcpKeepAlive(char *err, int fd)
+int anetTcpKeepAlive(char *err, int fd)  /* 设置TCP连接保持 */
 {
     int yes = 1;
     if (setsockopt(fd, SOL_SOCKET, SO_KEEPALIVE, &yes, sizeof(yes)) == -1) {
@@ -104,22 +104,22 @@ int anetTcpKeepAlive(char *err, int fd)
     return ANET_OK;
 }
 
-int anetResolve(char *err, char *host, char *ipbuf)
+int anetResolve(char *err, char *host, char *ipbuf)  /* 解析主机名,返回ip地址 */
 {
-    struct sockaddr_in sa;
+    struct sockaddr_in sa; // 初始化结构体
 
-    sa.sin_family = AF_INET;
-    if (inet_aton(host, &sa.sin_addr) == 0) {
-        struct hostent *he;
+    sa.sin_family = AF_INET;  //
+    if (inet_aton(host, &sa.sin_addr) == 0) {  // inet_aton() 将ip地址转换为整型值
+        struct hostent *he;  // 初始化结构体
 
-        he = gethostbyname(host);
-        if (he == NULL) {
+        he = gethostbyname(host);  // 获取ip地址
+        if (he == NULL) {  // 如果ip地址为空
             anetSetError(err, "can't resolve: %s\n", host);
             return ANET_ERR;
         }
-        memcpy(&sa.sin_addr, he->h_addr, sizeof(struct in_addr));
+        memcpy(&sa.sin_addr, he->h_addr, sizeof(struct in_addr));  // h_addr是1个宏定义,同h_addr_list[0].将h_addr拷贝到sin_addr中
     }
-    strcpy(ipbuf,inet_ntoa(sa.sin_addr));
+    strcpy(ipbuf,inet_ntoa(sa.sin_addr));  // inet_ntoa() 将整型值转换为ip地址,存到ipbuf中
     return ANET_OK;
 }
 

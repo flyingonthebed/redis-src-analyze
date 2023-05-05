@@ -33,7 +33,7 @@
 
 #define ANET_OK 0
 #define ANET_ERR -1
-#define ANET_ERR_LEN 256
+#define ANET_ERR_LEN 256  // 错误消息长度
 
 int anetTcpConnect(char *err, char *addr, int port);
 int anetTcpNonBlockConnect(char *err, char *addr, int port);
