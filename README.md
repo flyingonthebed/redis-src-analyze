@@ -9,16 +9,16 @@
 - 再下载redis源码学习对应的模块文件，分析其中代码实现细节与思路
 
 ## 3. 更新日志
-- 2022-09-21 完成 Makefile 文件解析
-- 2022-09-21 完成 redis-cli.c 文件解析
-- 2022-09-22 完成 sds.h 文件解析
-- 2022-09-24 完成 sds.c 文件解析
-- 2022-09-26 完成 config.h, zmalloc.c 文件解析
-- 2022-10-04 完成 adlist.h 文件解析
-- 2022-10-13 完成 adlist.c 文件解析
-- 2022-10-16 完成 zipmap.h 文件解析
-- 2022-11-04 完成 zipmap.c 文件解析
-- 2022-11-05 完成 dict.h 文件解析
-- 2023-05-04 完成 dict.c 文件解析
-- 2023-05-05 完成 anet.h 文件解析
-- 2023-05-05 完成 anet.c 文件解析
+- 2022-09-21 完成 [Makefile](https://github.com/flyingonthebed/redis-src-analyze/blob/main/redis-1.3.6/Makefile) 文件解析
+- 2022-09-21 完成 [redis-cli.c](https://github.com/flyingonthebed/redis-src-analyze/blob/main/redis-1.3.6/redis-cli.c) 文件解析
+- 2022-09-22 完成 [sds.h](https://github.com/flyingonthebed/redis-src-analyze/blob/main/redis-1.3.6/sds.h) 文件解析
+- 2022-09-24 完成 [sds.c](https://github.com/flyingonthebed/redis-src-analyze/blob/main/redis-1.3.6/sds.c) 文件解析
+- 2022-09-26 完成 [config.h](https://github.com/flyingonthebed/redis-src-analyze/blob/main/redis-1.3.6/config.h), [zmalloc.c](https://github.com/flyingonthebed/redis-src-analyze/blob/main/redis-1.3.6/zmalloc.c) 文件解析
+- 2022-10-04 完成 [adlist.h](https://github.com/flyingonthebed/redis-src-analyze/blob/main/redis-1.3.6/adlist.h) 文件解析
+- 2022-10-13 完成 [adlist.c](https://github.com/flyingonthebed/redis-src-analyze/blob/main/redis-1.3.6/adlist.c) 文件解析
+- 2022-10-16 完成 [zipmap.h](https://github.com/flyingonthebed/redis-src-analyze/blob/main/redis-1.3.6/zipmap.h) 文件解析
+- 2022-11-04 完成 [zipmap.c](https://github.com/flyingonthebed/redis-src-analyze/blob/main/redis-1.3.6/zipmap.c) 文件解析
+- 2022-11-05 完成 [dict.h](https://github.com/flyingonthebed/redis-src-analyze/blob/main/redis-1.3.6/dict.h) 文件解析
+- 2023-05-04 完成 [dict.c](https://github.com/flyingonthebed/redis-src-analyze/blob/main/redis-1.3.6/dict.c) 文件解析
+- 2023-05-05 完成 [anet.h](https://github.com/flyingonthebed/redis-src-analyze/blob/main/redis-1.3.6/anet.h) 文件解析
+- 2023-05-05 完成 [anet.c](https://github.com/flyingonthebed/redis-src-analyze/blob/main/redis-1.3.6/anet.c) 文件解析
